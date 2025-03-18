@@ -8,6 +8,9 @@ BiocManager::install("GenomicRanges")
 BiocManager::install("Biostrings")
 BiocManager::install("BSgenome")
 BiocManager::install("BiocStyle")
+BiocManager::install("BSgenome.Scerevisiae.UCSC.sacCer3")
+BiocManager::install("TxDb.Scerevisiae.UCSC.sacCer3.sgdGene")
+BiocManager::install("seqLogo")
 
 #Loading Packages----
 library(GenomicRanges)
@@ -127,4 +130,94 @@ myset$chrII
 # Getting sequences with GRanges
 getSeq(myset, mygranges)
 getSeq(myset, as("chrI:1-3:+", "GRanges")) #on the + strand
-getSeq(myset, as("chrI:1-3:-", "GRanges")) # on the - strand - complements above 
+getSeq(myset, as("chrI:1-3:-", "GRanges")) # on the - strand - Performs reverse complement if strand is "-".
+
+#Challenge - reverse complement TTCCATTTCCAT and then translate to AA
+seq2 <- DNAString("TTCCATTTCCAT")
+reverseComplement(seq2)
+translate(seq2)
+
+
+
+#BSGenome and TxDb packages ----
+# Genes and genomes for model organisms available
+# BSgenome =  Genomes as DNAStringSet- like objects
+#TxDB = Genes, transcripts, exons , CDS as GRanges
+#org = Translation of gene names , assignments to GO categories  etc.
+library(BSgenome.Scerevisiae.UCSC.sacCer3)
+library(GenomeInfoDb)
+genome <- Scerevisiae
+seqinfo(genome)
+genome$chrM
+library(TxDb.Scerevisiae.UCSC.sacCer3.sgdGene)
+# An object referring to a yeast transcriptome database has been loaded.
+# Actual data is only loaded from disk as needed.
+txdb <- TxDb.Scerevisiae.UCSC.sacCer3.sgdGene
+
+class(txdb)
+
+
+
+#Genes have transcripts. Transcripts have exons, and CDSs if they are protein coding.
+#The GRange for a transcript spans all of its exons. The GRange for a gene spans all the exons of all of its transcripts.
+genes(txdb)
+transcriptsBy(txdb, "gene")
+exonsBy(txdb, "tx", use.names = TRUE)
+cdsBy(txdb, "tx", use.names=TRUE)
+
+#EXAMPLE- EXTRACTING START CODONS
+#1) obtain locations of coding sequences
+cds_list <- cdsBy(txdb, "tx", use.names = TRUE)
+cds_list
+class(cds_list)
+head(elementNROWS(cds_list))
+table(elementNROWS(cds_list))
+cds_list[ elementNROWS(cds_list) >= 2 ]
+seqinfo(cds_list)
+genome(cds_list)
+# To flatten down to a GRanges, use unlist.
+unlist(cds_list)
+
+
+# Note that names will not be unique unless each element has length 1.
+
+cds_ranges <- unlist( range(cds_list) )
+start_codons <- resize(cds_ranges, 3, fix="start")
+start_seqs <- getSeq(genome, start_codons)
+table(start_seqs)
+
+
+#split: cdsBy has performed the splitting for us.
+#apply: range has a GRangesList version that calculates the range for each element individually.
+#combine: unlist goes from GRangesList to GRanges, taking names from the list names.
+#Use split() to perform the splitting step manually.
+
+#Challenge 
+seqinfo(cds_list)
+stop_codons <- resize(cds_ranges, 3, fix = "end")
+stop_seqc<- getSeq(genome, stop_codons)
+table(stop_seqc) # yeast preferred stop codon = TAA
+
+
+#Alt. way to extract start codons:
+cds_seqs <- extractTranscriptSeqs(genome, cds_list)
+table( subseq(cds_seqs, 1, 3) )
+cds_list[ start_seqs == "AGC" ]
+cds_list[ start_seqs == "AGT" ]
+
+
+
+#Characterizing a collection of locations in a genome----
+library(seqLogo)
+upstrand_ranges <- flank(cds_ranges, 10, start = TRUE)
+upstrand_seq <- getSeq(genome, upstrand_ranges)
+upstrand_seq
+
+letter_counts <- consensusMatrix(upstrand_seq)
+probs <- prop.table(letter_counts[1:4,], 2)
+seqLogo(probs, ic.scale = FALSE)
+seqLogo(probs)
+
+colSums(oligonucleotideFrequency(upstrand_seq, 2)) #if interested in k-mer frequency
+
+sessionInfo()
