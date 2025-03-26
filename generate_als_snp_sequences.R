@@ -61,7 +61,7 @@ seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,snp_annotated_resize)
 snp_annotated_strand
 snp_annotated_strand$flank_sequence = as.character(seq_flank)
 
-snp_annotated_strand_df <- as.data.frame(snp_annotated_strand)
+snp_annotated_strand_df <- as.data.frame(snp_annotated_strand) 
 
 
 
@@ -82,4 +82,15 @@ flank_seq_risk <- snp_annotated_strand_df |>
   ))
 
 
-  
+# FASTA -------------------------------------------------------------------
+
+
+flank_seq_risk_character <- as.character(flank_seq_risk)
+flank_seq_risk_clean <- gsub("[^ATGCN]", "", flank_seq_risk_character)
+writeXStringSet(DNAStringSet(flank_seq_risk_clean), filepath = "flank_sequence_risk.fasta")  
+writeXStringSet(DNAStringSet(flank_seq_risk_clean), filepath = "C:/Users/Kai/Documents/flank_sequence_risk.fasta")
+
+snp_annotated_strand_character <- as.character(snp_annotated_strand)
+snp_annotated_strand_clean <- gsub("[^ATGCN]", "", snp_annotated_strand_character)
+writeXStringSet(DNAStringSet(snp_annotated_strand_clean), filepath = "C:/Users/Kai/Documents/flank_sequence_healthy.fasta")
+writeXStringSet(DNAStringSet(snp_annotated_strand_clean), filepath = "flank_sequence_healthy.fasta")
