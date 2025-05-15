@@ -94,3 +94,38 @@ snp_annotated_strand_character <- as.character(snp_annotated_strand)
 snp_annotated_strand_clean <- gsub("[^ATGCN]", "", snp_annotated_strand_character)
 writeXStringSet(DNAStringSet(snp_annotated_strand_clean), filepath = "C:/Users/Kai/Documents/flank_sequence_healthy.fasta")
 writeXStringSet(DNAStringSet(snp_annotated_strand_clean), filepath = "flank_sequence_healthy.fasta")
+
+
+# FASTA TAKE 2 ------------------------------------------------------------
+flank_seq_risk_character<- as.character(flank_seq_risk)
+flank_seq_risk_clean <- gsub("[^ATGCN]", "", flank_seq_risk_character)
+flank_seq_risk_DNA <- DNAStringSet(flank_seq_risk_clean)
+names(flank_seq_risk_DNA) <- paste0("seq", seq_along(flank_seq_risk_DNA))
+writeXStringSet(flank_seq_risk_DNA, filepath = "flank_seq_risk.fasta")
+
+
+snp_annotated_strand_character <- as.character(snp_annotated_strand)
+snp_annotated_clean <- gsub("[^ATGCNatgcn]", "", snp_annotated_strand_character)
+snp_clean_valid <- snp_annotated_clean[nchar(snp_annotated_clean) > 0]
+healthy_flank_seq_DNA <- DNAStringSet((snp_clean_valid))
+names(healthy_flank_seq_DNA) <- paste0("seq", seq_along(healthy_flank_seq_DNA))
+writeXStringSet(healthy_flank_seq_DNA, filepath = "healthy_flank_seq.fasta")
+
+snp_annotated_strand_character <- as.character(snp_annotated_strand)
+snp_clean <- gsub("[^ATGCNatgcn]", "", snp_annotated_strand_character)
+snp_clean <- toupper(snp_clean)
+snp_clean_valid <- snp_clean[nchar(snp_clean) > 0]
+healthy_flank_seq_DNA <- DNAStringSet(snp_clean_valid)
+writeXStringSet(healthy_flank_seq_DNA, filepath = "healthy_flank_seq.fasta")
+
+
+
+head(snp_annotated_strand, 10)
+snp_annotated_strand_char <- as.character(snp_annotated_strand$flank_sequence)
+snp_clean <- gsub("[^ATGCNatgcn]", "", snp_annotated_strand_character)
+snp_clean <- toupper(snp_clean)
+snp_clean_valid <- snp_clean[nchar(snp_clean) > 0]
+healthy_flank_seq_DNA <- DNAStringSet(snp_clean_valid)
+names(healthy_flank_seq_DNA) <- paste0("seq", seq_along(healthy_flank_seq_DNA))
+writeXStringSet(healthy_flank_seq_DNA, filepath = "healthy_flank_seq.fasta")
+head(healthy_flank_seq_DNA)
