@@ -122,10 +122,10 @@ writeXStringSet(healthy_flank_seq_DNA, filepath = "healthy_flank_seq.fasta")
 
 head(snp_annotated_strand, 10)
 snp_annotated_strand_char <- as.character(snp_annotated_strand$flank_sequence)
-snp_clean <- gsub("[^ATGCNatgcn]", "", snp_annotated_strand_character)
-snp_clean <- toupper(snp_clean)
-snp_clean_valid <- snp_clean[nchar(snp_clean) > 0]
-healthy_flank_seq_DNA <- DNAStringSet(snp_clean_valid)
+
+snp_clean <- toupper(snp_annotated_strand_char)
+snp_clsnp_clean <- gsub("[^ATGCNatgcn]", "", snp_annotated_strand_character)ean_valid <- snp_clean[nchar(snp_clean) > 0]
+healthy_flank_seq_DNA <- DNAStringSet(snp_clean)
 names(healthy_flank_seq_DNA) <- paste0("seq", seq_along(healthy_flank_seq_DNA))
 writeXStringSet(healthy_flank_seq_DNA, filepath = "healthy_flank_seq.fasta")
 head(healthy_flank_seq_DNA)
