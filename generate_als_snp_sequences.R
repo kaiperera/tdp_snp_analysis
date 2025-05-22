@@ -129,3 +129,25 @@ healthy_flank_seq_DNA <- DNAStringSet(snp_clean)
 names(healthy_flank_seq_DNA) <- paste0("seq", seq_along(healthy_flank_seq_DNA))
 writeXStringSet(healthy_flank_seq_DNA, filepath = "healthy_flank_seq.fasta")
 head(healthy_flank_seq_DNA)
+
+
+
+
+# Convert and split into lines (if needed)
+flank_seq_risk_character <- as.character(flank_seq_risk)
+flank_seq_lines <- unlist(strsplit(flank_seq_risk_character, "\n"))
+
+# Remove non-ATGCN characters
+flank_seq_risk_clean <- gsub("[^ATGCN]", "", flank_seq_lines)
+
+# Remove empty sequences
+flank_seq_risk_clean <- flank_seq_risk_clean[nchar(flank_seq_risk_clean) > 0]
+
+# Convert to DNAStringSet
+flank_seq_risk_DNA <- DNAStringSet(flank_seq_risk_clean)
+
+# Name each sequence
+names(flank_seq_risk_DNA) <- paste0("seq", seq_along(flank_seq_risk_DNA))
+
+# Write to FASTA
+writeXStringSet(flank_seq_risk_DNA, filepath = "flank_seq_risk2.fasta")
