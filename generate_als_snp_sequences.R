@@ -81,6 +81,22 @@ flank_seq_risk <- snp_annotated_strand_df |>
                         substr(seq_flank, start = 39, stop = 75)
   ))
 
+colnames(flank_seq_risk)
+flank_seq_risk |> 
+  select(hm_variant_id, risk_flank) |> 
+  view()
+flank_seq_risk$risk_flank
+
+risk_flank_DSS <- DNAStringSet(flank_seq_risk$risk_flank) 
+names(risk_flank_DSS) <- flank_seq_risk$hm_variant_id
+
+
+
+
+
+
+
+
 
 # FASTA -------------------------------------------------------------------
 
@@ -150,4 +166,4 @@ flank_seq_risk_DNA <- DNAStringSet(flank_seq_risk_clean)
 names(flank_seq_risk_DNA) <- paste0("seq", seq_along(flank_seq_risk_DNA))
 
 # Write to FASTA
-writeXStringSet(flank_seq_risk_DNA, filepath = "flank_seq_risk2.fasta")
+writeXStringSet(risk_flank_DSS, filepath = "risk_flank_seq.fasta")
