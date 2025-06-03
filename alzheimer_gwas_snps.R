@@ -10,6 +10,7 @@ library(Biostrings)
 library(data.table)
 library(BiocManager)
 library(SNPlocs.Hsapiens.dbSNP155.GRCh38)
+BiocManager::install("biomaRt")
 
 # read in data  -----------------------------
 
@@ -17,11 +18,11 @@ library(SNPlocs.Hsapiens.dbSNP155.GRCh38)
 ad_snps_start<- fread("ad_gwas.tsv", sep = "\t")
 
 # Write CSV
-fwrite(ad_snps_start, "ad_gwas.csv")
+#fwrite(ad_snps_start, "ad_gwas.csv")
 
 view(ad_snps_start)
-view(ad_snps_to_start)
-ad_snps_to_start <- read.csv("ad_gwas.csv")
+#view(ad_snps_to_start)
+#ad_snps_to_start <- read.csv("ad_gwas.csv")
 
 
 
@@ -49,24 +50,43 @@ names(ad_gwas_annotated)
 
 
 # create new SNP only column / risk allele only column using separate ----------------------------------------------
-# end goal is to have same info as did in als sequences - risk, effect, chr, snp
-
-ad_gwas_annotated_separated <- ad_gwas_annotated |> separate(
-  `STRONGEST SNP-RISK ALLELE`, 
-  into = c("SNP_Name", "Risk_Allele",
-           sep = "-(?=[^-]+$")) |> 
-  select(SNP_Name, Risk_Allele)
 
 view(ad_gwas_annotated_separated)
 
 ad_gwas_annotated_separated <- ad_gwas_annotated |> 
-  extract(
-    `STRONGEST SNP-RISK ALLELE`,
-    into = c("SNP", "Risk_Allele"),
-    regex = "(.*)-(.*)") |
+  separate(
+    `STRONGEST SNP-RISK ALLELE`, 
+    into = c("SNP_Name", "Risk_Allele"),
+    sep = "-(?!.*-)",  # Negative lookahead: split on last hyphen
+    convert = FALSE    # Optional: prevents automatic type conversion
+  ) 
 
 
-#finish splitting - chromosomes wont split correctly so trying to fix that 
+
+
+
+# removing some variants  ------------------------------------------------------
+
+                                  
+ad_gwas_annotated_cleaned <- ad_gwas_annotated_separated |>
+  mutate(CONTEXT = trimws(tolower(CONTEXT)))
+
+removed_variants <- ad_gwas_annotated_separated |>
+  filter(grepl("regulatory_region_variant|intergenic_variant|stop_gained|inframe_insertion", 
+               CONTEXT))
+
+ad_gwas_removed_context <- anti_join(
+  ad_gwas_annotated_separated,
+  removed_variants,
+  by = "CONTEXT"
+)
+
+view(ad_gwas_removed_context)
+
+
+
+# figuring out strands ----------------------------------------------------
+#using mapped gene 
 
 
 
