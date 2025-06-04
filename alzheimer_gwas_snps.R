@@ -211,3 +211,13 @@ snp_annotated_strand |>
   mutate(extracted_sequence = as.character(annotated_sequence)) |> 
   filter(coding_all != extracted_sequence) # filters out instances where coding all does not equal extracted sequence 
 
+
+
+
+
+
+
+
+
+
+
