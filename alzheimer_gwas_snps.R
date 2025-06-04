@@ -25,6 +25,116 @@ view(ad_snps_start)
 
 
 
+# how many mapped traits/studies? -----------------------------------------
+
+strand_gwas_data_separate_allele |> select(MAPPED_TRAIT, MAPPED_TRAIT_URI, STUDY) |> view()
+
+
+# Count distinct mapped traits
+num_unique_traits <- length(unique(strand_gwas_data_separate_allele$MAPPED_TRAIT))
+print(paste("Number of unique mapped traits:", num_unique_traits))
+# check
+strand_gwas_data_separate_allele |> 
+  count(MAPPED_TRAIT) |> 
+  nrow() # both show 28 
+
+# Plot for Mapped Trait distribution
+ggplot(strand_gwas_data_separate_allele, aes(x = MAPPED_TRAIT)) +
+  geom_bar(fill = "steelblue") +  
+  labs(title = paste("Distribution of", num_unique_traits, "Mapped Traits"),
+       x = "Trait", 
+       y = "Number of Associations") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 50, hjust = 1, size =5))
+  
+ 
+
+
+
+# Count distinct Disease traits
+strand_gwas_data_separate_allele |> 
+  count(`DISEASE/TRAIT`) |> 
+  nrow()
+
+unique_trait_disease <- length(unique(strand_gwas_data_separate_allele$`DISEASE/TRAIT`))
+print(paste("Number of Unique Disease Traits", unique_trait_disease))   #44
+
+#Plot for Disease Trait:
+ggplot(strand_gwas_data_separate_allele, aes(x = `DISEASE/TRAIT`)) +
+  geom_bar(fill = "pink") +
+  labs( 
+    title =  "Distribution of 44 Disease Traits",
+    x = "Disease / Trait", 
+    y = "Count") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 50, hjust = 1, size = 5))
+
+#How many of the Disease Traits are mapped?
+mapped_disease_traits <- strand_gwas_data_separate_allele |> 
+  mutate(
+    mapped = ifelse(`DISEASE/TRAIT` == MAPPED_TRAIT, TRUE, FALSE)
+  )
+num_unique_mapped <- length(unique(mapped_disease_traits$MAPPED_TRAIT))
+print(paste("Number of unique mapped traits:", num_unique_mapped))
+
+total_matches <- sum(mapped_disease_traits$mapped)  # Total rows with matches
+unique_matches <- mapped_disease_traits |> 
+  filter(mapped) |> 
+  distinct(`DISEASE/TRAIT`) |> 
+  nrow()
+print(total_matches)
+
+mapped_disease_traits |> 
+  count(mapped) |> 
+  ggplot(aes(x = mapped, y = n, fill = mapped)) +
+  geom_col() +
+  geom_text(aes(label = n), vjust = -0.5) +
+  labs(title = paste("Overlap: ", unique_matches, "unique disease traits are mapped"),
+       x = "Disease matches MAPPED_TRAIT",
+       y = "Count") +
+  scale_fill_manual(values = c("FALSE" = "tomato", "TRUE" = "steelblue")) # no overlap
+
+
+#How many studies
+strand_gwas_data_separate_allele |> 
+  count(STUDY) |> 
+  nrow()
+number_study_accessions <- length(unique(strand_gwas_data_separate_allele$`STUDY ACCESSION`))
+print(paste("Number of Study Accessions", number_study_accessions))
+no_study <- length(unique(strand_gwas_data_separate_allele$STUDY))
+
+print(no_study) # 49 study but 78 study accessions?
+strand_gwas_data_separate_allele |> 
+  group_by(SNPS) |> 
+  select(STUDY, `STUDY ACCESSION`) |> 
+  view()
+
+# Study vs Study Accessions
+# Studies with >1 accession
+multi_accession_studies <- strand_gwas_data_separate_allele |> 
+  group_by(STUDY) |> 
+  filter(n_distinct(`STUDY ACCESSION`) > 1) |> 
+  distinct(STUDY, `STUDY ACCESSION`) |> print()  #some studies have multiple accession codes 
+
+# Accessions mapping to >1 study
+multi_study_accessions <- strand_gwas_data_separate_allele |> 
+  group_by(`STUDY ACCESSION`) |> 
+  filter(n_distinct(STUDY) > 1)  |> 
+  distinct(`STUDY ACCESSION`, STUDY) |> print()
+
+
+
+strand_gwas_data_separate_allele |> select(MAPPED_TRAIT, `DISEASE/TRAIT`) |> view()
+
+
+
+#95%CI 
+strand_gwas_data_separate_allele |> select(95% CI (TEXT), OR or BETA )
+
+#finish finding out how the 95% CI units are measured, and look more into OR/BETA
+names(strand_gwas_data_separate_allele)
+
+
 # map SNPs to alleles -----------------------------------------------------
 
 
@@ -45,6 +155,7 @@ iupac_codes <- c(
 ad_gwas_annotated$alleles <- iupac_codes[ad_gwas_annotated$alleles_as_ambig] #dont get values until ~line 94
 
 names(ad_gwas_annotated)
+
 
 
 
@@ -130,23 +241,60 @@ view(strand_gwas_data)
 
 
 
+# making other allele column  ---------------------------------------------
+looking <- strand_gwas_data |> select(
+  alleles, Risk_Allele, SNP_Name
+)
+
+
+view(looking) #filter out NA for allele column and ? for risk
+
+filtering_alleles <- strand_gwas_data |>
+  filter(!is.na(alleles)) |> 
+  group_by(SNP_Name) |> 
+  mutate(allele_count = length(unlist(strsplit(unique(alleles), split = "/")))) |> 
+  filter(allele_count != 3) |> 
+  ungroup() |> 
+  filter(Risk_Allele != "?")
+
+
+view(filtering_alleles)
+
+#make other allele column - ifelse function
+
+strand_gwas_data_separate_allele <- filtering_alleles |> 
+  mutate( allele_list = strsplit(alleles, "/"),
+          non_risk = map2_chr(                    # Extract the non-risk allele(s)
+            allele_list,
+            Risk_Allele,
+            ~ paste(setdiff(.x, .y), collapse ="/") # Keep alleles that are NOT the risk allele
+          )) |> 
+  select(-allele_list) |>             #removes temporary column
+  mutate (is_risk_allele = ifelse(
+    str_detect(alleles, fixed(Risk_Allele)),
+    TRUE,
+    FALSE
+  )) |> 
+  filter(is_risk_allele)
+
+
+
 # GRange creation ----------------------------------------------------------
 
-strand_gwas_data <- strand_gwas_data |> 
+strand_gwas_data_separate_allele <- strand_gwas_data_separate_allele |> 
   mutate(
     Strand = case_when(
       Strand %in% c("+", "-", "*") ~ Strand,
       TRUE ~ "*"  # Set invalid values to unknown
     )
   )
-strand_gwas_data2 <-strand_gwas_data #use 2 when unsure if im messing something up so we have an OG
 
-strand_gwas_data$strand <- NULL
+strand_gwas_data_separate_allele$strand <- NULL
 
-strand_gwas_data <- strand_gwas_data |> 
+strand_gwas_data_separate_allele <- strand_gwas_data_separate_allele |> 
   rename(sequence_names = seqnames)  # needed to rename as GRange cant be created with seqnames (and strand) already in use 
 
-ad_snps_gr <- strand_gwas_data |> 
+ad_snps_gr <- strand_gwas_data_separate_allele |> 
     mutate(                                                        #check and clean CHR_POS
     CHR_ID = paste0('chr', CHR_ID),
     CHR_POS = suppressWarnings(as.numeric(CHR_POS)),                  # Convert to numeric and suppress the warning
@@ -165,22 +313,23 @@ ad_snps_gr <- strand_gwas_data |>
 
 
 # annotating snps  --------------------------------------------------------
-#rethink names as unsure if working with snps or genes rn 
-# als snps had specific other allele column, might need to add that
-normal_genes = build_annotations(genome = 'hg38', annotations = c("hg38_basicgenes")) 
 
-ad_snp_annotated_gr <- annotate_regions(ad_snps_gr,annotations = normal_genes) 
+ad_normal_genes = build_annotations(genome = 'hg38', annotations = c("hg38_basicgenes")) 
+
+ad_snp_annotated_gr <- annotate_regions(ad_snps_gr,annotations = ad_normal_genes) 
 amigoingmad()
 ad_snp_annotated <- as.data.frame(ad_snp_annotated_gr)
 
-ad_snp_annotated2 <- ad_snp_annotated
 
-ad_snp_annotated_strand <- ad_snp_annotated |> 
- select(seqnames:Risk_Allele,annot.strand) |> 
+
+ad_snp_annotated_strand <- ad_snp_annotated_clean |> 
+ select(seqnames:SNPS, Risk_Allele, non_risk, annot.strand) |> 
   select(-strand) |> # selects but removes strand from it
   unique() |> # doesnt show repeated data / names 
   makeGRangesFromDataFrame(    keep.extra.columns = TRUE,
                                strand.field = 'annot.strand')
+
+
 
 annotated_sequence <- getSeq(BSgenome.Hsapiens.UCSC.hg38, ad_snp_annotated_strand)
 
@@ -189,8 +338,17 @@ annotated_sequence <- getSeq(BSgenome.Hsapiens.UCSC.hg38, ad_snp_annotated_stran
 # sanity check ------------------------------------------------------------
 
 ad_snp_annotated_strand |> 
-  as.data.frame() |> mutate(all_coding = ifelse(strand == "+",
-                                                ))
+  as.data.frame() |> 
+  mutate(coding = ifelse(strand == "+",
+                         non_risk,
+                         as.character(reverseComplement((DNAStringSet(non_risk)))))) |> 
+  mutate(extracted_sequence = as.character(annotated_sequence))  |> 
+  filter(coding != extracted_sequence) 
+  mutate( 
+    reverse_complement_check = as.character (reverseComplement(DNAStringSet(non_risk))) == extracted_sequence)
+
+table(ad_snp_annotated_strand$strand)
+
   
 
 
@@ -198,24 +356,11 @@ ad_snp_annotated_strand |>
 
 
 
-
-
-
-
-
-snp_annotated_strand |> 
-  as.data.frame() |> 
-  mutate(coding_all = ifelse(strand == "+", # called it coding all - if the strand is positive, else reverse complement
-                             hm_other_allele, 
-                             as.character(reverseComplement(DNAStringSet(hm_other_allele))))) |> # only works on DNAStringSet so had to do as.character
-  mutate(extracted_sequence = as.character(annotated_sequence)) |> 
-  filter(coding_all != extracted_sequence) # filters out instances where coding all does not equal extracted sequence 
-
-
-
-
-
-
+ad_snp_annotated_clean <- ad_snp_annotated |> 
+  mutate( seqnames = str_trim(as.character(seqnames))) |> 
+  distinct(seqnames, start, end, SNPS, .keep_all = TRUE)
+view(ad_snp_annotated_clean)
+  
 
 
 
