@@ -126,12 +126,34 @@ multi_study_accessions <- strand_gwas_data_separate_allele |>
 
 strand_gwas_data_separate_allele |> select(MAPPED_TRAIT, `DISEASE/TRAIT`) |> view()
 
+#janitor clean names - run last when reloading 
+strand_gwas_data_separate_allele <- strand_gwas_data_separate_allele |> 
+  janitor::clean_names() 
 
 
 #95%CI 
-strand_gwas_data_separate_allele |> select(95% CI (TEXT), OR or BETA )
+strand_gwas_data_separate_allele |> dplyr::select(x95_percent_ci_text, or_or_beta) |> view()
+strand_gwas_data_separate_allele$x95_percent_ci_text |> view()
 
-#finish finding out how the 95% CI units are measured, and look more into OR/BETA
+for_ggplot <- strand_gwas_data_separate_allele |> 
+  mutate(
+    CI_lower = as.numeric(str_extract(x95_percent_ci_text, "(?<=\\[)(.*?)(?=-)" )),
+    CI_upper = as.numeric(str_extract(x95_percent_ci_text,"(?<=-)(.*?)(?=\\])" ))
+  )
+
+
+
+ggplot(for_ggplot, aes(x = snps, y = or_or_beta)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin =  CI_lower, xmax = CI_upper), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") + # reference line for OR
+  labs(x = "SNP", y = "OR/BETA", 
+       title = "GWAS Results with 95% Confidence Intervals") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(50, hjust = 1, size = 5))
+  
+
+
 names(strand_gwas_data_separate_allele)
 
 
@@ -269,7 +291,7 @@ strand_gwas_data_separate_allele <- filtering_alleles |>
             Risk_Allele,
             ~ paste(setdiff(.x, .y), collapse ="/") # Keep alleles that are NOT the risk allele
           )) |> 
-  select(-allele_list) |>             #removes temporary column
+  dplyr::select(-allele_list) |>             #removes temporary column
   mutate (is_risk_allele = ifelse(
     str_detect(alleles, fixed(Risk_Allele)),
     TRUE,
