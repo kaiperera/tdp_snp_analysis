@@ -264,7 +264,7 @@ view(strand_gwas_data)
 
 
 # making other allele column  ---------------------------------------------
-looking <- strand_gwas_data |> select(
+looking <- strand_gwas_data |> dplyr::select(
   alleles, Risk_Allele, SNP_Name
 )
 
@@ -282,7 +282,7 @@ filtering_alleles <- strand_gwas_data |>
 
 view(filtering_alleles)
 
-#make other allele column - ifelse function
+
 
 strand_gwas_data_separate_allele <- filtering_alleles |> 
   mutate( allele_list = strsplit(alleles, "/"),
@@ -318,18 +318,17 @@ strand_gwas_data_separate_allele <- strand_gwas_data_separate_allele |>
 
 ad_snps_gr <- strand_gwas_data_separate_allele |> 
     mutate(                                                        #check and clean CHR_POS
-    CHR_ID = paste0('chr', CHR_ID),
-    CHR_POS = suppressWarnings(as.numeric(CHR_POS)),                  # Convert to numeric and suppress the warning
-    Strand_Info = ifelse(Strand %in% c("+", "-"), Strand, "*")     # Force valid strand values
+    chr_id = paste0('chr', chr_id),
+    chr_pos = suppressWarnings(as.numeric(chr_pos)),                  # Convert to numeric and suppress the warning
+    strand = ifelse(strand %in% c("+", "-"), strand, "*")     # Force valid strand values
   ) |> 
-  filter(!is.na(CHR_POS)) |># Remove problematic rows
-  dplyr::select(-Strand) |> 
+  filter(!is.na(chr_pos)) |># Remove problematic rows
   makeGRangesFromDataFrame(                  # Create GRanges object
     keep.extra.columns = TRUE,
-    seqnames.field = "CHR_ID", 
-    start.field = "CHR_POS",
-    end.field = "CHR_POS",
-    strand.field = "Strand_Info"
+    seqnames.field = "chr_id", 
+    start.field = "chr_pos",
+    end.field = "chr_pos",
+    strand.field = "strand"
 )
 
 
@@ -344,8 +343,8 @@ ad_snp_annotated <- as.data.frame(ad_snp_annotated_gr)
 
 
 
-ad_snp_annotated_strand <- ad_snp_annotated_clean |> 
- select(seqnames:SNPS, Risk_Allele, non_risk, annot.strand) |> 
+ad_snp_annotated_strand <- ad_snp_annotated |> 
+ select(seqnames:snps, risk_allele, non_risk, annot.strand) |> 
   select(-strand) |> # selects but removes strand from it
   unique() |> # doesnt show repeated data / names 
   makeGRangesFromDataFrame(    keep.extra.columns = TRUE,
@@ -365,7 +364,7 @@ ad_snp_annotated_strand |>
                          non_risk,
                          as.character(reverseComplement((DNAStringSet(non_risk)))))) |> 
   mutate(extracted_sequence = as.character(annotated_sequence))  |> 
-  filter(coding != extracted_sequence) 
+  filter(coding != extracted_sequence)  
   mutate( 
     reverse_complement_check = as.character (reverseComplement(DNAStringSet(non_risk))) == extracted_sequence)
 
@@ -373,15 +372,72 @@ table(ad_snp_annotated_strand$strand)
 
   
 
+# resize ------------------------------------------------------------------
+ad_snp_anotated_resize <- ad_snp_annotated_strand |> 
+  resize (width = width(ad_snp_annotated_strand) + 74, fix = "center", ignore.strand = FALSE) # CHECK IF 74 CORRECT
+
+ad_seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38, ad_snp_anotated_resize)
+
+ad_snp_annotated_strand$flank_sequence <- as.character(ad_seq_flank)
+
+ad_snp_annotated_strand_df <- as.data.frame(ad_snp_annotated_strand)
+
+colnames(ad_snp_annotated_strand_df)
+ad_snp_annotated_strand_df |> 
+  select(snps, flank_sequence) |> 
+  view()
+
+ad_healthy_DSS <- DNAStringSet(ad_snp_annotated_strand$flank_sequence)
+names(ad_healthy_DSS) <- ad_snp_annotated_strand$snps
+
+writeXStringSet(ad_healthy_DSS, filepath = "ad_healthy_seq_test.fasta")
+
+
+
+
+# risk --------------------------------------------------------------------
+ad_flank_risk_seq <- ad_snp_annotated_strand_df |> 
+  mutate(
+    risk_coding_allele = ifelse(
+      strand == "+",
+      risk_allele,
+      as.character(reverseComplement(DNAStringSet(risk_allele)))
+    )
+    ) |> 
+  mutate(
+    risk_flank = paste0(substr(ad_seq_flank, start = 1, stop = 37), risk_coding_allele,
+                        substr(ad_seq_flank, start = 39, stop = 75))
+  )
+
+colnames(ad_flank_risk_seq)
+ad_flank_risk_seq |> 
+  select(snps, risk_flank) |> 
+  view()
+ad_flank_risk_seq$risk_flank
+
+ad_flank_risk_DSS <- DNAStringSet(ad_flank_risk_seq$risk_flank)
+names(ad_flank_risk_DSS) <- ad_flank_risk_seq$snps
+
+writeXStringSet(ad_flank_risk_DSS, filepath = "ad_risk_test.fasta")
 
 
 
 
 
-ad_snp_annotated_clean <- ad_snp_annotated |> 
-  mutate( seqnames = str_trim(as.character(seqnames))) |> 
-  distinct(seqnames, start, end, SNPS, .keep_all = TRUE)
-view(ad_snp_annotated_clean)
+
+
+
+
+
+
+
+
+
+
+#ad_snp_annotated_clean <- ad_snp_annotated |> 
+ # mutate( seqnames = str_trim(as.character(seqnames))) |> 
+  #distinct(seqnames, start, end, snps, .keep_all = TRUE)
+
   
 
 
