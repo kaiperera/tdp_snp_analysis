@@ -9,3 +9,5 @@ go into detail as to what happens in each file
 
 ```bed_file_read``` = reads in bedfile postar3_tardbp_reduced.bed.zip  
 
+```read_in_deepclip``` = reads in ALS DeepClip output, code of outputting binding profiles based on this 
+
