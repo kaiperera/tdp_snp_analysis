@@ -27,10 +27,11 @@ als_gwas_gr <- als_gwas1_separate_id |>
     keep.extra.columns = TRUE,
     seqnames.field = "chr",
     start.field = "start",
-    end.field = "start"
+    end.field = "start",
+    strand = 
   )
 
-#use og als snps to start - will need rsid and strand info - may need als_snps_gr
+#use og als snps to start - will need rsid and strand info - may need als_snps_gr= have to left join something somewhere 
 
 als_snps_to_start_df <- as.data.frame(als_snps_to_start)
 
@@ -38,4 +39,19 @@ als_snps_to_start_df <- as.data.frame(als_snps_to_start)
 
 # get strand info and rsid  -----------------------------------------------
 
+combined_gr <- c(als_snps_gr, als_gwas_gr) #idk if this was useful
 
+
+rsids <- als_snps_gr$hm_rsid 
+als_snp_strand_info <- snpsById(SNPlocs.Hsapiens.dbSNP155.GRCh38, rsids, ifnotfound = "drop")
+strand(als_snps_gr) <- strand(als_snp_strand_info)[match(rsids, names(als_snp_strand_info))]
+
+
+missing_snps <- rsids[!rsids %in% names(als_snp_strand_info)]
+head(missing_snps)
+
+strand(als_snps_gr) <- "*"  # Initialize all as unstranded
+found <- rsids %in% names(als_snp_strand_info)
+strand(als_snps_gr)[found] <- strand(als_snp_strand_info)[match(rsids[found], names(als_snp_strand_info)
+
+                                                                
