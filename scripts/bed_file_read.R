@@ -23,3 +23,6 @@ granges_bed <- GRanges(
 
 
 head(bed_data)
+
+
+
