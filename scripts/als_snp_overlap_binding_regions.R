@@ -180,21 +180,28 @@ paired_plot <- function(final_overlap, plot_difference) {      #    plot_differe
 
 target_rows <- c(4,5)
 
+
 for (i in target_rows) {  
   x = final_overlap[i,]   #extracts i-th row - assumes data in df where each row contains sequence data 
   width = 10.5   #sets pdf dimensions
   height = 3.65
   if (length(final_overlap$weights[[1]]) <= 30) {width = 7.75}
-  p = paired_plot(final_overlap, plot_difference = FALSE)  #plot generation
-  pdf(paste0("profile_",i,".pdf"), width = width, height = height)  #saves plot as pdf
+  
+  base_name <- switch(as.character(i),
+                      "4" = "intronic_SNP",
+                      "5" = "CE_SNP",
+                      paste0("row_", i))
+  
+  p = paired_plot(als_gwas1, plot_difference = FALSE)  #plot generation
+  pdf(paste0(base_name,".pdf"), width = width, height = height)  #saves plot as pdf
   print(p)
   dev.off()
   
-  p_diff = paired_plot(final_overlap, plot_difference = TRUE)
-  pdf(paste0("profile_",i,".difference.pdf"), width = width, height = height)
+  p_diff = paired_plot(als_gwas1, plot_difference = TRUE)
+  pdf(paste0(base_name,".difference.pdf"), width = width, height = height)
   print(p_diff)
   dev.off()
 }
-
 #rs12973192 - profile_5, rs12608932 - profile_4
 
+#slight difference in named ones vs profile ones eg) CE_SNPdiff has different x axis to profile_5diff - check 
