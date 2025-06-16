@@ -196,5 +196,5 @@ for (i in target_rows) {
   dev.off()
 }
 
-
+#rs12973192 - profile_5, rs12608932 - profile_4
 
