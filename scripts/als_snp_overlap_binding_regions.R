@@ -28,7 +28,7 @@ als_gwas_gr <- als_gwas1_separate_id |>
     seqnames.field = "chr",
     start.field = "start",
     end.field = "start",
-    strand = "annot.strand"
+    strand.field = "annot.strand"
   )
 
 #use og als snps to start - will need rsid and strand info - may need als_snps_gr= have to left join something somewhere 
@@ -37,7 +37,7 @@ als_snps_to_start_df <- as.data.frame(als_snps_to_start)
 
 
 
-# get strand info and rsid  -----------------------------------------------
+# get strand info -----------------------------------------------
 
 combined_gr <- c(als_snps_gr, als_gwas_gr) #idk if this was useful
 
@@ -55,7 +55,7 @@ library(biomaRt)
 # Connect to Ensembl
 ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 
-# Get genes overlapping your GRanges
+# Get genes overlapping  GRanges
 genes <- getBM(
   attributes = c("chromosome_name", "start_position", "end_position", "strand"),
   filters = c("chromosomal_region"),
@@ -76,85 +76,71 @@ als_gwas1_strand <- makeGRangesFromDataFrame(
   strand.field = "strand",            
   keep.extra.columns = TRUE           
 )
-hits <- findOverlaps(als_gwas_gr, genes_gr)
-strand(als_gwas_gr)[queryHits(hits)] <- strand(genes_gr)[subjectHits(hits)]
+hits <- findOverlaps(als_gwas_gr, als_gwas1_strand)
+strand(als_gwas_gr)[queryHits(hits)] <- strand(als_gwas1_strand)[subjectHits(hits)]
+
+
+# Convert chromosome names to UCSC format
+uscs_format <- ifelse(
+  seqlevels(als_gwas_gr) == "MT",  # Handle mitochondrial case
+  "chrM",
+  paste0("chr", seqlevels(als_gwas_gr))
+)
+
+# Apply new names
+seqlevels(als_gwas_gr) <- uscs_format
+
 
 
 # rsids -------------------------------------------------------------------
-#currently working on als gwas1 strand info - trying to get rsids via ensembl- if doesnt work try to merge w als_snps_gr -
+
+
+# Merge by overlaps (keeps all ranges from both)
+merged <- mergeByOverlaps(als_gwas_gr, snp_annotated_strand)
+
+# Extract and clean the result
+final_result <- merged$als_gwas_gr  # Ranges from als_gwas_gr
+final_result$hm_rsid <- merged$hm_rsid  # Attach rsids
+
+# Add non-overlapping ranges 
+non_overlapping <- snp_annotated_strand[!snp_annotated_strand %over% als_gwas_gr]
+final_result <- c(final_result, non_overlapping)
+
+#final_result is the merged information from OG als snp data and the gwas data
+#granges_bed = tdp binding regions
 
 
 
-# Connect to the dedicated SNP database
-snp_mart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp")
+# finding overlaps --------------------------------------------------------
+
+findOverlaps(granges_bed, final_result)
+ 
+final_result <- unique(final_result)  #get rid of duplicates 
+granges_bed <- unique(granges_bed)
+
+
+overlap <- findOverlaps(granges_bed, final_result)
+
+#subset by overlap +/- 200
+grange_overlap <- subsetByOverlaps(granges_bed,
+                                   final_result,
+                                   maxgap = 200,
+                                   ignore.strand = FALSE) # finds SNPs in granges_bed that overlaps with final_result
+final_overlap <- subsetByOverlaps(final_result, 
+                                  granges_bed,
+                                  maxgap = 200,
+                                  ignore.strand = FALSE) # finds SNPs in final_result that overlaps with granges-bed 
+shared_snps <- unique(c(grange_overlap, final_overlap)) # 771 entries, no variant sequences or rsids
 
 
 
+#check using another method
+shared_snp_check <- GenomicRanges::intersect(granges_bed, final_result)
 
-regions <- paste0(
-  seqnames(als_gwas1_strand), ":", 
-  start(als_gwas1_strand), "-", 
-  end(als_gwas1_strand)
-)
+#shared_snp_check = 30, shared_snp = 771 so idk if that helped at all
 
-# Fetch rsIDs for all regions
-snp_data <- getBM(
-  attributes = c("refsnp_id", "chr_name", "chrom_start", "chrom_end"),
-  filters = "chromosomal_region", 
-  values = regions,
-  mart = snp_mart
-)
-
-
-# For main Ensembl genes (not optimal for SNPs)
-listAttributes(ensembl)[grep("snp", listAttributes(ensembl)$name, ignore.case = TRUE),]
-
-# Better: Use the dedicated SNP mart
-snp_mart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp")
-listAttributes(snp_mart)[1:20,]  # View first 20 attributes
-
-
-
-
-
-
-
-
-#left join als strand grange and als snp grange - need to finish fixing
-
-
-#  find overlaps
-overlaps <- findOverlaps(als_gwas1_strand, snp_annotated_strand)
-
-# Create a merged GRanges with metadata from both
-result <- als_gwas1_strand[queryHits(overlaps)]
-mcols(result) <- cbind(mcols(result), mcols(snp_annotated_strand[subjectHits(overlaps)]))
-
-# For ranges in gwas_strand that don't overlap with anp_annot, we need to add them back
-non_overlapping <- als_gwas1_strand[!seq_along(als_gwas1_strand) %in% queryHits(overlaps)]
-mcols(non_overlapping) <- cbind(mcols(non_overlapping), 
-                                DataFrame(matrix(NA, nrow=length(non_overlapping), 
-                                                 ncol=ncol(mcols(snp_annotated_strand)), 
-                                               )))
-                                
-# Combine the results
-final_result <- c(result, non_overlapping)
- final_result <- final_result[order(as.numeric(c(queryHits(overlaps), 
-                                                 which(!seq_along(als_gwas1_strand) %in% queryHits(overlaps)))))]
-#final result doesnt have rsids 
-
-
-
-
-
-
-
-
-
-
-
-
-
+#need to get variant sequence and rsids into shared_snps - both present in final_overlap
+#how is shared snps 771 but final is only 326/ grange is 445 - figure out 
 
 
 
