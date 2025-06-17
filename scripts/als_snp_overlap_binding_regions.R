@@ -11,10 +11,10 @@ granges_bed <- GRanges(
   strand = ifelse(bed_data$V6 %in% c("+", "-"), bed_data$V6, "*")
 )
 
-final_overlap_df <- as.data.frame(final_overlap)
+als_gwas1_df <- as.data.frame(als_gwas1)
 
 
-final_overlap_separate_id <- final_overlap_df |> 
+als_gwas_separate_id <- als_gwas1_df |> 
   dplyr::relocate(id) |> #relocates column to start if no position given
   separate(id,
            remove = FALSE, # doesnt remove OG column
@@ -22,7 +22,7 @@ final_overlap_separate_id <- final_overlap_df |>
            sep = '_',
            into = c('chr','start')) 
 
-als_gwas_gr <- final_overlap_separate_id |> 
+als_gwas_gr <- als_gwas_separate_id |> 
   makeGRangesFromDataFrame(
     keep.extra.columns = TRUE,
     seqnames.field = "chr",
@@ -65,7 +65,7 @@ genes$strand <- ifelse(genes$strand == 1, "+",
                        ifelse(genes$strand == -1, "-", "*"))
 
 # Convert to GRanges and assign strands
-final_overlap_strand <- makeGRangesFromDataFrame(
+als_gwas1_strand <- makeGRangesFromDataFrame(
   genes,
   seqnames.field = "chromosome_name",  
   start.field = "start_position",     
@@ -73,8 +73,8 @@ final_overlap_strand <- makeGRangesFromDataFrame(
   strand.field = "strand",            
   keep.extra.columns = TRUE           
 )
-hits <- findOverlaps(als_gwas_gr, final_overlap_strand)
-strand(als_gwas_gr)[queryHits(hits)] <- strand(final_overlap_strand)[subjectHits(hits)]
+hits <- findOverlaps(als_gwas_gr, als_gwas1_strand)
+strand(als_gwas_gr)[queryHits(hits)] <- strand(als_gwas1_strand)[subjectHits(hits)]
 
 
 # Convert chromosome names to UCSC format
@@ -192,16 +192,15 @@ for (i in target_rows) {
                       "5" = "CE_SNP",
                       paste0("row_", i))
   
-  p = paired_plot(als_gwas1, plot_difference = FALSE)  #plot generation
+  p = paired_plot(final_overlap, plot_difference = FALSE)  #plot generation
   pdf(paste0(base_name,".pdf"), width = width, height = height)  #saves plot as pdf
   print(p)
   dev.off()
   
-  p_diff = paired_plot(als_gwas1, plot_difference = TRUE)
+  p_diff = paired_plot(final_overlap, plot_difference = TRUE)
   pdf(paste0(base_name,".difference.pdf"), width = width, height = height)
   print(p_diff)
   dev.off()
 }
 #rs12973192 - profile_5, rs12608932 - profile_4
 
-#slight difference in named ones vs profile ones eg) CE_SNPdiff has different x axis to profile_5diff - check 
