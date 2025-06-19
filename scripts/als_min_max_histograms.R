@@ -9,7 +9,7 @@ final_result_tbl <- as_tibble(final_result)
 
 snp_score_result <- final_result_tbl |> 
   group_by(score) |> 
-  select(hm_rsid,weights,variant_weights) |> 
+  select(hm_rsid,weights,variant_weights) |>
   unnest(weights,variant_weights) |> 
   mutate(diff = variant_weights - weights) 
 
@@ -80,4 +80,3 @@ p1 <- ggplot(histogram, aes(x = min_diff)) +
 p1/p2
 
 
-#add on geom vlines for the 2 snps 
