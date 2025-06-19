@@ -1,5 +1,7 @@
 # use final result - has rsids
-
+library(conflicted)
+conflict_prefer("select", "dplyr")   #will prefer these select and filter functions over other packages 
+conflict_prefer("filter", "dplyr")
 
 # min max values for all snps ---------------------------------------------
 
@@ -8,7 +10,7 @@ final_result_tbl <- as_tibble(final_result)
 
 
 snp_score_result <- final_result_tbl |> 
-  group_by(score) |> 
+  group_by(score) |>
   select(hm_rsid,weights,variant_weights) |>
   unnest(weights,variant_weights) |> 
   mutate(diff = variant_weights - weights) 
@@ -18,6 +20,8 @@ min_and_max_scores <- snp_score_result |>
   summarise(
     min_diff = min(diff), na.rm = TRUE,
     max_diff = max(diff), na.rm = TRUE)
+
+histogram <- left_join(snp_score_result, min_and_max_scores, by = "score")
 
 snp_vline_min <-histogram |> 
   filter(hm_rsid %in% c("rs12973192", "rs12608932")) |> 
@@ -33,7 +37,7 @@ snp_vline_max <-histogram |>
 CE_vline_max <- c(0.01161578)
 intronic_vline_max <- c(0.07675736)
 
-histogram <- left_join(snp_score_result, min_and_max_scores, by = "score")
+
 
 
 
