@@ -15,8 +15,11 @@ final_result_tbl |>
   left_join(unique_score_rsid) |> 
   ggplot(aes(x = snp_in_tdp,
              y = min_diff )) +
-  geom_boxplot() +
-  geom_hline(yintercept = CE_vline_min,size = 2,linetype = 'dotted')
+  geom_boxplot(fill = "cyan", 
+               colour = "orchid4") +
+  geom_hline(yintercept = CE_vline_min,
+             size = 2,
+             linetype = 'dotted')
 
 
 #probably not necessary 
