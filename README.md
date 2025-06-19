@@ -14,5 +14,5 @@ go into detail as to what happens in each file
 ```als_snp_overlap_binding_regions``` = converts bed_data to GRange, provides strand info / rsIDs for ALS DeepClip output, finds overlaps between DeepClip output and TDP_43 binding sites, exports PDFs of binding profiles for CE_SNP and intronic_SNP  
 ```als_min_max_histograms``` = Ascertain the difference between minimumm and maximum DeepClip scores per SNP and generating histograms to visualise   
 ```als_snps_in_binding_regions_boxplot``` = Ascertain how many SNPs from the DeepClip output are also present in TDP-43 binding regions, make a boxplot for visualisation,are both SNPs of interest also present in binding regions  
-```als_analysis_code``` = markdown file consolidating all the above files in one place
+```als_analysis_code``` = markdown file consolidating all the ALS scripts in one place
 
