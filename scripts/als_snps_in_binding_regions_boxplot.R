@@ -19,8 +19,6 @@ final_result_tbl |>
   geom_hline(yintercept = CE_vline_min,size = 2,linetype = 'dotted')
 
 
-
-
 #probably not necessary 
 binding_region_snp_score <- final_overlap_tbl |> 
   group_by(score) |>
@@ -37,3 +35,6 @@ boxplot <- left_join(binding_region_snp_score, minmax_binding, by = "score")
 
 
 
+# are 2 SNPs of interest in binding regions? ------------------------------
+
+  c("rs12973192", "rs12608932") %in% final_overlap_tbl$hm_rsid

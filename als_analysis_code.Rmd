@@ -1,0 +1,475 @@
+---
+title: "als_analysis_code"
+output: html_document
+date: "2025-06-19"
+---
+# Libraries
+```{r LOAD}
+library(GenomicRanges)
+library(tidyverse)
+library(annotatr)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(Biostrings)
+library(rtracklayer)
+library(jsonlite)
+library(ggplot2)
+library(ggpubr)
+library(biomaRt)
+library(conflicted)
+library(patchwork)
+```
+
+
+#Generating ALS SNP sequences for DeepCLip analysis
+```{r READ IN DATA}
+als_snps_to_start <- read.csv("data/als_snps_to_start.csv")
+als_snps_to_start <-  als_snps_to_start |> filter(!is.na(hm_pos)) # filter data so that no missing values in hm_pos
+```
+
+```{r REMOVE SNPS W/OUT HM_POS, GET ANNOTATED STRAND}
+als_snps_gr <- als_snps_to_start |> 
+  mutate(hm_chrom = paste0('chr',hm_chrom)) |>  #UCSC and NBCI have different ways to store data- causes issues- pastes in "chr" w no space in hm_chrom column to avoid formatting issues 
+  makeGRangesFromDataFrame(
+    keep.extra.columns = TRUE, # columns in df not used to form genomic ranges of retunred GRanges returned to metadata columns
+    seqnames.field = "hm_chrom", 
+    start.field = "hm_pos", # width 1 so start and end column same
+    end.field = "hm_pos"
+  )
+
+
+normal_genes = build_annotations(genome = 'hg38', annotations = c("hg38_basicgenes")) 
+
+snp_annotated_gr = annotate_regions(als_snps_gr,annotations = normal_genes) #annotates regions eg) exons, introns 
+amigoingmad()
+snp_annotated = as.data.frame(snp_annotated_gr) #annotate_regions returns a GRange- convert to df for ease
+
+snp_annotated_strand = snp_annotated |> 
+  select(seqnames:hm_effect_allele,annot.strand) |> 
+  select(-strand) |> # selects but removes strand from it
+  unique() |> # doesnt show repeated data / names 
+  makeGRangesFromDataFrame(    keep.extra.columns = TRUE,
+                               strand.field = 'annot.strand') #used to specify the column in data that contains strand information
+
+annotated_sequence <- getSeq(BSgenome.Hsapiens.UCSC.hg38, snp_annotated_strand) #extract sequences from a reference genome (in this case, the human genome, hg38) based on a set of genomic ranges or positions specified by snp_annotated_strand.
+
+```
+
+```{r SANITY CHECK}
+snp_annotated_strand |> 
+  as.data.frame() |> 
+  mutate(coding_all = ifelse(strand == "+", # called it coding all - if the strand is positive, else reverse complement
+                                   hm_other_allele, 
+                                   as.character(reverseComplement(DNAStringSet(hm_other_allele))))) |> # only works on DNAStringSet so had to do as.character
+  mutate(extracted_sequence = as.character(annotated_sequence)) |> 
+  filter(coding_all != extracted_sequence) # filters out instances where coding all does not equal extracted sequence 
+
+```
+
+```{r EXPAND}
+snp_annotated_resize <- snp_annotated_strand |> #have to do it from a GRange not a df
+  resize(width = width(snp_annotated_strand) + 74, fix = "center", ignore.strand = FALSE) #added 75 bp width, fixed at centre, FALSE = finds overlap when strands match, TRUE = finds overlap when regardless - not sure which one to use
+
+seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,snp_annotated_resize)
+snp_annotated_strand
+snp_annotated_strand$flank_sequence = as.character(seq_flank)
+
+snp_annotated_strand_df <- as.data.frame(snp_annotated_strand) 
+
+```
+
+```{r HEALTHY FLANK SEQUENCE FASTA FILE GENERATION}
+colnames(snp_annotated_strand_df)
+snp_annotated_strand_df |> 
+  select(hm_variant_id, flank_sequence) |> 
+  view()
+snp_annotated_strand_df$flank_sequence
+
+
+healthy_sequence_DSS <- DNAStringSet(snp_annotated_strand$flank_sequence)
+names(healthy_sequence_DSS) <- snp_annotated_strand$hm_variant_id
+
+writeXStringSet(healthy_sequence_DSS, filepath = "healthy_flank_seq2.fasta")
+
+```
+
+```{r RISK FLANK SEQUENCE FASTA FILE GENERATION}
+flank_seq_risk <- snp_annotated_strand_df |> 
+  mutate(
+    risk_coding_allele = ifelse(
+      strand == "+",
+      hm_effect_allele, 
+      as.character(reverseComplement(DNAStringSet(hm_effect_allele)))  
+    )
+  ) |> 
+  mutate(
+    risk_flank = paste0(substr(seq_flank, start = 1, stop = 37),risk_coding_allele,
+                        substr(seq_flank, start = 39, stop = 75)
+  ))
+
+colnames(flank_seq_risk)
+flank_seq_risk |> 
+  select(hm_variant_id, risk_flank) |> 
+  view()
+flank_seq_risk$risk_flank
+
+risk_flank_DSS <- DNAStringSet(flank_seq_risk$risk_flank) 
+names(risk_flank_DSS) <- flank_seq_risk$hm_variant_id
+
+writeXStringSet(risk_flank_DSS, filepath = "risk_flank_seq.fasta")
+
+```
+
+
+# TDP-43 Binding Region Bed File Read In
+```{r READ IN BED FILE DIRECTLY FROM ZIP}
+bed_data <- read.table(
+  unz("data/postar3_tardbp_reduced.bed.zip", "postar3_tardbp_reduced.bed"),
+  sep = "\t",
+  header = FALSE,
+  stringsAsFactors = FALSE
+)
+```
+
+
+# ALS GWAS DeepClip Output Read In and Generic Binding Profile Plotting
+```{r READ IN DEEPCLIP}
+deepclip_data <- stream_in(file("C:/Users/Kai/Desktop/tdp_snp_analysis/data/als_gwas1.json"))
+```
+
+```{r GGPLOT CLEAN THEME FOR PLOTTING BINDING PROFILES}
+clean_theme <- function() {
+  ggpubr::theme_pubclean() +     #creates clean theme to reuse in all plots
+    theme(
+      axis.line = element_line(colour = "black"),
+      axis.text = element_text(colour = "black"),
+      strip.text = element_text(face = "bold")
+    )
+  }
+```
+need to run this theme before plotting any binding profiles
+
+```{r CODE FOR PLOTTING BINDING PROFILES}
+
+als_gwas1 <- jsonlite::fromJSON("C:/Users/Kai/Desktop/tdp_snp_analysis/data/als_gwas1.json")$predictions
+
+als_gwas1$variant_sequence = gsub("T", "U", als_gwas1$variant_sequence)  #makes sure its RNA sequence
+als_gwas1$variant_sequence = gsub("t", "u", als_gwas1$variant_sequence)
+als_gwas1$sequence = gsub("T", "U", als_gwas1$sequence)
+als_gwas1$sequence = gsub("t", "u", als_gwas1$sequence)
+
+# FUNCTION CREATION
+paired_plot <- function(als_gwas1, plot_difference) {      #    plot_difference =  function parameter (like a switch) that determines whether the plot shows: FALSE = raw weights for both sequences, TRUE = difference between weights
+  weights1 <- unlist(x$weights)
+  weights2 <- unlist(x$variant_weights)
+
+  seq1 <- strsplit(toupper(als_gwas1$sequence), "")[[1]]      # prepares code for comparison - toupper = all upper case, strsplit = splits character string into individual characters, [1] = select first element from each list returned by strsplit 
+  seq2 <- strsplit(toupper(als_gwas1$variant_sequence), "")[[1]]  # output = character vectors 
+  
+  if(plot_difference) {    #for plot_difference = TRUE
+    weights2 <- weights2 - weights1  #calculates difference (variant - reference)
+    tbl <- data.frame(
+      pos = seq_along(seq2),
+      weight = weights2,        #difference values
+      group = factor(rep("difference", length(seq2))) # all rows labelled difference 
+    )
+  } else {      #for plot_difference = FALSE 
+    tbl <- data.frame(
+      pos = c(seq_along(seq1), seq_along(seq2)), # combines positions for both sequences 
+      weight = c(weights1, weights2),     #stacks reference and variants weights 
+      group = factor(c(rep("reference", length(seq1)), rep("variant", length(seq2))), levels=c("reference","variant"))
+    )   #explicit factor levels 
+  }
+
+  
+  xlabels <- mapply(function(a, b) paste(a, ifelse(a==b, "", b), sep="\n"), seq1, seq2) # visual comparison of sequences via stacking them vertically and highlighting differences 
+  
+  p <- ggplot(tbl, aes(pos, weight))
+  if(plot_difference) p <- p + geom_hline(yintercept=0, color="dodgerblue") # only if plot_difference = TRUE - adds horizontal blue line at y intercept to show no difference - helps visualise positive and negative difference 
+  p <- p +
+    geom_line(aes(color=group), size=0.8) +
+    scale_x_continuous(breaks=seq(1, max(tbl$pos)), labels=xlabels) +   #x-axis ticks at each position
+    scale_color_manual(values=c("black", "red")) +
+    clean_theme() +
+    theme(
+      legend.title = element_blank(),
+      axis.title.x = element_blank(),
+      axis.text.x = element_text(size=11)
+    ) + labs(y="DeepCLIP score")
+  return(p)
+}
+
+for (i in 1:dim(als_gwas1)[1]) {  
+  x = als_gwas1[i,]   #extracts i-th row - assumes data in df where each row contains sequence data 
+  width = 10.5   #sets pdf dimensions
+  height = 3.65
+  if (length(als_gwas1$weights[[1]]) <= 30) {width = 7.75}
+  p = paired_plot(als_gwas1, plot_difference = FALSE)  #plot generation
+  pdf(paste0("profile_",i,".pdf"), width = width, height = height)  #saves plot as pdf
+  print(p)
+  dev.off()
+  
+  p_diff = paired_plot(als_gwas1, plot_difference = TRUE)
+  pdf(paste0("profile_",i,".difference.pdf"), width = width, height = height)
+  print(p_diff)
+  dev.off()
+}
+```
+
+
+# Finding Regions in ALS DeepClip Output that Overlap with TDP-43 Binding Regions
+```{r CONVERT TDP-43 BINDING REGION BED FILE TO GRANGE}
+granges_bed <- GRanges(
+  seqnames = bed_data$V1,
+  ranges = IRanges(start = bed_data$V2 + 1, end = bed_data$V3),  # BED is 0-based, R is 1-based so need to allow for that 
+  strand = ifelse(bed_data$V6 %in% c("+", "-"), bed_data$V6, "*")
+)
+```
+
+```{r CONVERT DEEPCLIP OUTPUT TO GRANGE }
+als_gwas1_df <- as.data.frame(als_gwas1)
+
+
+als_gwas_separate_id <- als_gwas1_df |> 
+  dplyr::relocate(id) |> #relocates column to start if no position given
+  separate(id,
+           remove = FALSE, # doesnt remove OG column
+           convert = TRUE,   #converts it to numerical rather than character vector
+           sep = '_',
+           into = c('chr','start')) 
+
+als_gwas_gr <- als_gwas_separate_id |> 
+  makeGRangesFromDataFrame(
+    keep.extra.columns = TRUE,
+    seqnames.field = "chr",
+    start.field = "start",
+    end.field = "start",
+    strand.field = "annot.strand"
+  )
+
+```
+
+```{r GETTING STRAND INFO FOR DEEPCLIP OUTPUT}
+# Connect to Ensembl
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+# Get genes overlapping  GRanges
+genes <- getBM(
+  attributes = c("chromosome_name", "start_position", "end_position", "strand"),
+  filters = c("chromosomal_region"),
+  values = paste0(seqnames(als_gwas_gr), ":", start(als_gwas_gr), "-", end(als_gwas_gr)),
+  mart = ensembl
+)
+
+# Convert numeric strands (1/-1) to character
+genes$strand <- ifelse(genes$strand == 1, "+",
+                       ifelse(genes$strand == -1, "-", "*"))
+
+# Convert to GRanges and assign strands
+als_gwas1_strand <- makeGRangesFromDataFrame(
+  genes,
+  seqnames.field = "chromosome_name",  
+  start.field = "start_position",     
+  end.field = "end_position",        
+  strand.field = "strand",            
+  keep.extra.columns = TRUE           
+)
+hits <- findOverlaps(als_gwas_gr, als_gwas1_strand)
+strand(als_gwas_gr)[queryHits(hits)] <- strand(als_gwas1_strand)[subjectHits(hits)]
+
+
+# Convert chromosome names to UCSC format
+uscs_format <- ifelse(
+  seqlevels(als_gwas_gr) == "MT",  # Handle mitochondrial case
+  "chrM",
+  paste0("chr", seqlevels(als_gwas_gr))
+)
+
+# Apply new names
+seqlevels(als_gwas_gr) <- uscs_format
+```
+
+```{r GETTING RSID INFORMATION FROM snp_annotated_strand}
+# Merge by overlaps (keeps all ranges from both)
+merged <- mergeByOverlaps(als_gwas_gr, snp_annotated_strand)
+
+# Extract and clean the result
+final_result <- merged$als_gwas_gr  # Ranges from als_gwas_gr
+final_result$hm_rsid <- merged$hm_rsid  # Attach rsids
+
+# Add non-overlapping ranges 
+non_overlapping <- snp_annotated_strand[!snp_annotated_strand %over% als_gwas_gr]
+final_result <- c(final_result, non_overlapping)
+
+#final_result is the merged information from OG als snp data and the gwas data
+#granges_bed = tdp binding regions
+```
+
+```{r FINDING OVERLAPPING SNPS BETWEEN DEEPCLIP AND BINDING REGIONS}
+final_result <- unique(final_result)  #get rid of duplicates 
+
+
+
+#subset by overlap +/- 200
+final_overlap <- subsetByOverlaps(final_result, 
+                                  granges_bed,
+                                  maxgap = 200,
+                                  ignore.strand = FALSE) # finds SNPs in final_result that overlaps with granges-bed 
+
+```
+
+```{r MAKING BINDING PROFILES USING PREVIOUS CODE FOR CE_SNP AND intronic_SNP}
+final_overlap$variant_sequence = gsub("T", "U", final_overlap$variant_sequence)  #makes sure its RNA sequence
+final_overlap$variant_sequence = gsub("t", "u", final_overlap$variant_sequence)
+final_overlap$sequence = gsub("T", "U", final_overlap$sequence)
+final_overlap$sequence = gsub("t", "u", final_overlap$sequence)
+
+# FUNCTION CREATION
+paired_plot <- function(final_overlap, plot_difference) {      #    plot_difference =  function parameter (like a switch) that determines whether the plot shows: FALSE = raw weights for both sequences, TRUE = difference between weights
+  weights1 <- unlist(x$weights)
+  weights2 <- unlist(x$variant_weights)
+  
+  seq1 <- strsplit(toupper(final_overlap$sequence), "")[[1]]      # prepares code for comparison - toupper = all upper case, strsplit = splits character string into individual characters, [1] = select first element from each list returned by strsplit 
+  seq2 <- strsplit(toupper(final_overlap$variant_sequence), "")[[1]]  # output = character vectors 
+  
+  if(plot_difference) {    #for plot_difference = TRUE
+    weights2 <- weights2 - weights1  #calculates difference (variant - reference)
+    tbl <- data.frame(
+      pos = seq_along(seq2),
+      weight = weights2,        #difference values
+      group = factor(rep("difference", length(seq2))) # all rows labelled difference 
+    )
+  } else {      #for plot_difference = FALSE 
+    tbl <- data.frame(
+      pos = c(seq_along(seq1), seq_along(seq2)), # combines positions for both sequences 
+      weight = c(weights1, weights2),     #stacks reference and variants weights 
+      group = factor(c(rep("reference", length(seq1)), rep("variant", length(seq2))), levels=c("reference","variant"))
+    )   #explicit factor levels 
+  }
+  
+  
+  xlabels <- mapply(function(a, b) paste(a, ifelse(a==b, "", b), sep="\n"), seq1, seq2) # visual comparison of sequences via stacking them vertically and highlighting differences 
+  
+  p <- ggplot(tbl, aes(pos, weight))
+  if(plot_difference) p <- p + geom_hline(yintercept=0, color="dodgerblue") # only if plot_difference = TRUE - adds horizontal blue line at y intercept to show no difference - helps visualise positive and negative difference 
+  p <- p +
+    geom_line(aes(color=group), size=0.8) +
+    scale_x_continuous(breaks=seq(1, max(tbl$pos)), labels=xlabels) +   #x-axis ticks at each position
+    scale_color_manual(values=c("black", "red")) +
+    clean_theme() +
+    theme(
+      legend.title = element_blank(),
+      axis.title.x = element_blank(),
+      axis.text.x = element_text(size=11)
+    ) + labs(y="DeepCLIP score")
+  return(p)
+}
+
+target_rows <- c(4,5)
+
+
+for (i in target_rows) {  
+  x = final_overlap[i,]   #extracts i-th row - assumes data in df where each row contains sequence data 
+  width = 10.5   #sets pdf dimensions
+  height = 3.65
+  if (length(final_overlap$weights[[1]]) <= 30) {width = 7.75}
+  
+  base_name <- switch(as.character(i),
+                      "4" = "intronic_SNP",
+                      "5" = "CE_SNP",
+                      paste0("row_", i))
+  
+  p = paired_plot(final_overlap, plot_difference = FALSE)  #plot generation
+  pdf(paste0(base_name,".pdf"), width = width, height = height)  #saves plot as pdf
+  print(p)
+  dev.off()
+  
+  p_diff = paired_plot(final_overlap, plot_difference = TRUE)
+  pdf(paste0(base_name,".difference.pdf"), width = width, height = height)
+  print(p_diff)
+  dev.off()
+}
+#rs12973192 - profile_5, rs12608932 - profile_4
+```
+
+
+# Finding Minimum and Maximum DeepClip scores and Making Histograms
+```{r SET PREFERENCE FOR dplyr SELECT AND FILTER}
+conflict_prefer("select", "dplyr")   #will prefer these select and filter functions over other packages 
+conflict_prefer("filter", "dplyr")
+```
+
+```{r MIN AND MAX VALUES FOR ALL SNPS}
+final_result_tbl <- as_tibble(final_result)
+
+
+snp_score_result <- final_result_tbl |> 
+  group_by(score) |>
+  select(hm_rsid,weights,variant_weights) |>
+  unnest(weights,variant_weights) |> 
+  mutate(diff = variant_weights - weights) 
+
+
+min_and_max_scores <- snp_score_result |> 
+  summarise(
+    min_diff = min(diff), na.rm = TRUE,
+    max_diff = max(diff), na.rm = TRUE)
+
+histogram <- left_join(snp_score_result, min_and_max_scores, by = "score")
+
+snp_vline_min <-histogram |> 
+  filter(hm_rsid %in% c("rs12973192", "rs12608932")) |> 
+  select(hm_rsid, min_diff)
+
+CE_vline_min <- c(-0.1398594)
+intronic_vline_min <-c(-0.1044512)
+
+snp_vline_max <-histogram |> 
+  filter(hm_rsid %in% c("rs12973192", "rs12608932")) |> 
+  select(hm_rsid, max_diff)
+
+CE_vline_max <- c(0.01161578)
+intronic_vline_max <- c(0.07675736)
+```
+
+```{r MAKING THE HISTOGRAMS}
+#Histogram for minimum score
+p1 <- ggplot(histogram, aes(x = min_diff)) +
+  geom_histogram(bins = 100, fill = "steelblue", color = "black") +
+  labs(title = "Minimum Score Distribution",
+       x = "DeepCLIP Minimum Score", 
+       y = "Count") +
+   geom_vline(
+     xintercept = CE_vline_min,
+     colour = "red", 
+     linetype = "dashed", 
+     linewidth = 1) +
+   geom_vline(
+     xintercept = intronic_vline_min,
+     colour = "blue",
+     linetype = "dashed",
+     linewidth = 1)
+
+ 
+ #Histogram for maximum score
+ p2 <-ggplot(min_and_max_scores, aes(x = max_diff)) +
+  geom_histogram(bins = 100, fill = "purple", color = "green") +
+  labs(title = "Maximum Score Distribution",
+       x = "DeepCLIP Maximum Score", 
+       y = "Count") +
+   geom_vline(
+     xintercept = CE_vline_max,
+     colour = "red", 
+     linetype = "dashed", 
+     linewidth = 1) +
+   geom_vline(
+     xintercept = intronic_vline_max,
+     colour = "blue",
+     linetype = "dashed",
+     linewidth = 1)
+
+
+
+p1/p2
+
+```
+
