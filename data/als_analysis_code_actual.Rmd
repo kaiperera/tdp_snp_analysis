@@ -406,10 +406,6 @@ Intronic_snp = shows 43 binding affinity - moderate DeepClip scores across seque
 
 
 # Finding Minimum and Maximum DeepClip scores and Making Histograms
-```{r SET PREFERENCE FOR dplyr SELECT AND FILTER}
-conflict_prefer("select", "dplyr")   #will prefer these select and filter functions over other packages 
-conflict_prefer("filter", "dplyr")
-```
 
 ```{r MIN AND MAX VALUES FOR ALL SNPS}
 final_result_tbl <- as_tibble(final_result)
