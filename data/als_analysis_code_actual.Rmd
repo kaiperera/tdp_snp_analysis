@@ -511,7 +511,13 @@ final_result_tbl |>
                colour = "orchid4") +
   geom_hline(yintercept = CE_vline_min,
              size = 2,
-             linetype = 'dotted')
+             linetype = 'dotted') +
+   labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
+       x = "SNP in Binding Region Status",
+       y = "Minimum Difference") +
+  theme_bw() +
+  stat_compare_means() # adds stat test right into plot 
+
 
 ```
 mutate = adds / modifies column
@@ -519,7 +525,39 @@ snp_in_tdp = name of new column
 hm_rsid %in% final_overlap_tbl=  checks if value hm_rsid exists in final_overlap_tbl$hm_rsid
 creates logical TRUE/FALSE argument -> TRUE = present 
 
+    Boxes: Represent the interquartile range (IQR; middle 50% of data).
+
+    Median Line: The horizontal line inside each box shows the median (50th percentile).
+
+    Whiskers: Extend to ±1.5×IQR (or min/max values).
+
+    Overlap: Significant overlap = similar distributions- Each box  represents  middle 50% of the data (from the 25th - 75th percentile). When  overlap,  means  central distributions of  two groups  not clearly separated — they share  similar range of values.
+    
+    Outliers: Points beyond whiskers
+significant overlap of the boxes shows that the 2 groups have a similar distribution of min_diff
+    
 ```{r ARE CE_SNP AND intronic_SNP IN BINDING REGIONS?}
  c("rs12973192", "rs12608932") %in% final_overlap_tbl$hm_rsid
 ```
 returns TRUE therefore both are present within binding regions
+
+```{r KRUSKAL-WALLIS AND WELCH TEST}
+final_result_tbl %>%
+  mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) %>% 
+  select(hm_rsid,snp_in_tdp) %>%
+  left_join(unique_score_rsid) %>% 
+  kruskal.test(min_diff ~ snp_in_tdp, data =.) #1 df but lets check
+
+kruskal_test_data <- final_result_tbl |> 
+  mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |>  
+  select(hm_rsid,snp_in_tdp) |> 
+  left_join(unique_score_rsid) 
+  
+kruskal.test(min_diff ~ snp_in_tdp, data =kruskal_test_data) #exact same output
+
+#Welch
+t.test(min_diff ~ snp_in_tdp, data = kruskal_test_data) #defaults welch test
+```
+KW : chi2 = 0.82501, pvalue >0.05 - no significant difference in min_diff distribution between those in binding regions and those that aren't
+Welch: no significant difference between means of the 2 groups 
+Statistical tests back up what is seen in the box  plot 

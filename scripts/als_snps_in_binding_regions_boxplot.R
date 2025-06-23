@@ -19,7 +19,12 @@ final_result_tbl |>
                colour = "orchid4") +
   geom_hline(yintercept = CE_vline_min,
              size = 2,
-             linetype = 'dotted') 
+             linetype = 'dotted') +
+  labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
+       x = "SNP in Binding Region Status",
+       y = "Minimum Difference") +
+  theme_bw() +
+  stat_compare_means()
 
 
 
