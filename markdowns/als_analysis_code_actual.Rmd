@@ -15,14 +15,13 @@ library(jsonlite)
 library(ggplot2)
 library(ggpubr)
 library(biomaRt)
-library(conflicted)
 library(patchwork)
 ```
 
 
 #Generating ALS SNP sequences for DeepCLip analysis
 ```{r READ IN DATA}
-als_snps_to_start <- read.csv("data/als_snps_to_start.csv")
+als_snps_to_start <- read.csv(here::here("data/als_snps_to_start.csv"))
 als_snps_to_start <-  als_snps_to_start |> filter(!is.na(hm_pos)) # filter data so that no missing values in hm_pos
 ```
 
@@ -126,7 +125,7 @@ writeXStringSet(risk_flank_DSS, filepath = "risk_flank_seq.fasta")
 # TDP-43 Binding Region Bed File Read In
 ```{r READ IN BED FILE DIRECTLY FROM ZIP}
 bed_data <- read.table(
-  unz("data/postar3_tardbp_reduced.bed.zip", "postar3_tardbp_reduced.bed"),
+  unz(here::here("data/postar3_tardbp_reduced.bed.zip", "postar3_tardbp_reduced.bed")),
   sep = "\t",
   header = FALSE,
   stringsAsFactors = FALSE
