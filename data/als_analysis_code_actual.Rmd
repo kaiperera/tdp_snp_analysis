@@ -125,7 +125,8 @@ writeXStringSet(risk_flank_DSS, filepath = "risk_flank_seq.fasta")
 # TDP-43 Binding Region Bed File Read In
 ```{r READ IN BED FILE DIRECTLY FROM ZIP}
 bed_data <- read.table(
-  unz("data/postar3_tardbp_reduced.bed.zip", "postar3_tardbp_reduced.bed"),
+  unz(here::here("data/postar3_tardbp_reduced.bed.zip"),
+  "postar3_tardbp_reduced.bed"),
   sep = "\t",
   header = FALSE,
   stringsAsFactors = FALSE
