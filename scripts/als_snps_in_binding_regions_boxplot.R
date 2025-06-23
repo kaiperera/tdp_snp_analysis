@@ -19,25 +19,38 @@ final_result_tbl |>
                colour = "orchid4") +
   geom_hline(yintercept = CE_vline_min,
              size = 2,
-             linetype = 'dotted')
+             linetype = 'dotted') 
 
 
-#probably not necessary 
-binding_region_snp_score <- final_overlap_tbl |> 
-  group_by(score) |>
-  select(hm_rsid,weights,variant_weights) |>
-  unnest(weights,variant_weights) |> 
-  mutate(diff = variant_weights - weights)
-
-minmax_binding <- binding_region_snp_score |> 
-  summarise(
-    min_diff = min(diff), na.rm = TRUE,
-    max_diff = max(diff), na.rm = TRUE)
-
-boxplot <- left_join(binding_region_snp_score, minmax_binding, by = "score")
 
 
 
 # are 2 SNPs of interest in binding regions? ------------------------------
 
   c("rs12973192", "rs12608932") %in% final_overlap_tbl$hm_rsid
+
+
+
+# run kruskal wallis test on means ----------------------------------------
+#comparing means of false and true
+
+final_result_tbl %>%
+  mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) %>% 
+  select(hm_rsid,snp_in_tdp) %>%
+  left_join(unique_score_rsid) %>% 
+  kruskal.test(min_diff ~ snp_in_tdp, data =.) #1 df but lets check
+
+kruskal_test_data <- final_result_tbl |> 
+  mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |>  
+  select(hm_rsid,snp_in_tdp) |> 
+  left_join(unique_score_rsid) 
+  
+kruskal.test(min_diff ~ snp_in_tdp, data =kruskal_test_data) #exact same output
+
+#chi2 = 0.82501, pvalue >0.05 - no significant difference in min_diff distribution between those in binding regions and those that arent
+
+
+# need to do for mean - cant use kruskal apparently
+
+  t.test(min_diff ~ snp_in_tdp, data = kruskal_test_data)  # default welch test
+# no significant difference between means of the 2 groups 
