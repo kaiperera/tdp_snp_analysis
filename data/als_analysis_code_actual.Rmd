@@ -543,7 +543,7 @@ final_result_tbl %>%
   mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) %>% 
   select(hm_rsid,snp_in_tdp) %>%
   left_join(unique_score_rsid) %>% 
-  kruskal.test(min_diff ~ snp_in_tdp, data =.) #1 df but lets check
+  kruskal.test(min_diff ~ snp_in_tdp, data =.) 
 
 kruskal_test_data <- final_result_tbl |> 
   mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |>  
