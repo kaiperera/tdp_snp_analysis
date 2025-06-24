@@ -558,7 +558,7 @@ t.test(min_diff ~ snp_in_tdp, data = kruskal_test_data) #defaults welch test
 KW : chi2 = 0.82501, pvalue >0.05 - no significant difference in min_diff distribution between those in binding regions and those that aren't
 Welch: no significant difference between means of the 2 groups 
 Statistical tests back up what is seen in the box  plot 
-
+just note %>% and |>  work differently 
 
 #Binding Region SNPs near TDP-43 Splice Junctions
 Getting SNPs in binding regions with a greater/equal predicted effect than CE_SNP
