@@ -120,7 +120,7 @@ seqlevels(separate_tdp_splicing_events_gr) <- uscs_format
 
 
 
-# splice info for binding snps  -------------------------------------------
+# strand info for binding snps  -------------------------------------------
 
 
 seqlevels(binding_snps_gr) <- sub("^chr", "", seqlevels(binding_snps_gr))
@@ -164,7 +164,7 @@ seqlevels(binding_snps_gr) <- uscs_format
 
 
 
-# splice info for any snp -------------------------------------------------
+# strand info for any snp -------------------------------------------------
 
 
 seqlevels(any_snps_gr) <- sub("^chr", "", seqlevels(any_snps_gr))
