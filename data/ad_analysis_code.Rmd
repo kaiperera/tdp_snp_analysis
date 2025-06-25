@@ -22,6 +22,7 @@ library(BiocManager)
 library(SNPlocs.Hsapiens.dbSNP155.GRCh38)
 library(org.Hs.eg.db) 
 library(AnnotationDbi)
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 ```
 
 
