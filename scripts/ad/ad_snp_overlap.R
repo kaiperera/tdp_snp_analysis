@@ -113,3 +113,7 @@ differing_strands <- ad_gwas_gr |>
   left_join(ad_snp_annotated, by = "seqnames") #|> 
   dplyr::select(snps, strand, strand_)
   
+
+  
+  
+  # map genes to snps that differ - see if theyre important genes 
