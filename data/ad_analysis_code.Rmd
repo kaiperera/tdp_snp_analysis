@@ -24,7 +24,240 @@ library(SNPlocs.Hsapiens.dbSNP155.GRCh38)
 
 
 #Generating AD SNP sequences for DeepCLip analysis
+add the question bit at the end , but add janitor clean somewhere here 
 ```{r READ IN DATA}
 ad_snps_start<- fread("ad_gwas.tsv", sep = "\t") #add here::here
+```
+
+```{r MAP SNPS TO ALLELES}
+valid_snp_id <- grep("^rs\\d+$", ad_snps_start$SNPS, value = TRUE)
+snp_info <- snpsById(SNPlocs.Hsapiens.dbSNP155.GRCh38, valid_snp_id, ifnotfound="drop") 
+snp_alleles <- as.data.frame (snp_info)
+snp_alleles_unique <- unique(snp_alleles, by = "RefSNP_id")
+ad_gwas_annotated <- merge(ad_snps_start, snp_alleles_unique,
+                           by.x = "SNPS", by.y = "RefSNP_id", all.x = TRUE)
+
+view(ad_gwas_annotated)
+iupac_codes <- c(
+  "M" = "A/C", "K" = "G/T", "R" = "A/G", "Y" = "C/T",
+  "S" = "G/C", "W" = "A/T", "B" = "C/G/T", "D" = "A/G/T"
+)
+
+ad_gwas_annotated$alleles <- iupac_codes[ad_gwas_annotated$alleles_as_ambig] #dont get values until ~line 94
+
+```
+
+```{r CREATE NEW SNP ONLY/ RISK ALLELE ONLY COLUMN}
+ad_gwas_annotated_separated <- ad_gwas_annotated |> 
+  separate(
+    `STRONGEST SNP-RISK ALLELE`, 
+    into = c("SNP_Name", "Risk_Allele"),
+    sep = "-(?!.*-)",  # Negative lookahead: split on last hyphen
+    convert = FALSE    # Optional: prevents automatic type conversion
+  ) 
+```
+
+```{r REMOVE SOME VARIANTS}
+ad_gwas_annotated_cleaned <- ad_gwas_annotated_separated |>
+  mutate(CONTEXT = trimws(tolower(CONTEXT)))
+
+removed_variants <- ad_gwas_annotated_separated |>
+  filter(grepl("regulatory_region_variant|intergenic_variant|stop_gained|inframe_insertion", 
+               CONTEXT))
+
+ad_gwas_removed_context <- anti_join(
+  ad_gwas_annotated_separated,
+  removed_variants,
+  by = "CONTEXT"
+)
+```
+
+```{r GET STRAND INFO}
+mapped_gene_symbols <- ad_gwas_removed_context$MAPPED_GENE # gets ENTREZ IDs
+gene_ids <- mapIds(
+  org.Hs.eg.db,
+  keys = mapped_gene_symbols,
+  keytype = "SYMBOL",
+  column = "ENTREZID"
+)
+
+gene_id_character <- as.character(gene_ids)
+gene_id_character <- gene_id_character[!is.na(gene_id_character)]
+
+mapped_gene_strands <- select(          #gets strand info from TxDb
+  TxDb.Hsapiens.UCSC.hg38.knownGene,
+  keys = gene_id_character,
+  columns = "TXSTRAND",
+  keytype = "GENEID"
+)
+
+strand_data <- mapped_gene_strands |>    #creates consensus strand per gene- highlights single dominant transcription direction - avoids confusion /misinterpretation]
+  group_by(GENEID) |> 
+  summarize(
+    Strand = case_when(
+      all(TXSTRAND == "+") ~ "+",
+      all(TXSTRAND == "-") ~ "-",
+      TRUE ~ "*"
+    )
+  ) |> #adds gene symbols back in 
+  mutate(
+    SYMBOL = mapIds(org.Hs.eg.db,
+                    keys = GENEID,
+                    keytype = "ENTREZID",
+                    column = "SYMBOL")
+  ) |> 
+  dplyr::select(SYMBOL, Strand) |> 
+  distinct(SYMBOL, .keep_all = TRUE) #removes duplicates 
+            
+     
+strand_gwas_data <- ad_gwas_removed_context |> #merge 
+  left_join(strand_data, by = c("MAPPED_GENE" = "SYMBOL"))
+
+```
+
+```{r MAKING OTHER ALLELE COLUMN}
+filtering_alleles <- strand_gwas_data |>
+  filter(!is.na(alleles)) |> 
+  group_by(SNP_Name) |> 
+  mutate(allele_count = length(unlist(strsplit(unique(alleles), split = "/")))) |> 
+  filter(allele_count != 3) |> 
+  ungroup() |> 
+  filter(Risk_Allele != "?")
+
+strand_gwas_data_separate_allele <- filtering_alleles |> 
+  mutate( allele_list = strsplit(alleles, "/"),
+          non_risk = map2_chr(                    # Extract the non-risk allele(s)
+            allele_list,
+            Risk_Allele,
+            ~ paste(setdiff(.x, .y), collapse ="/") # Keep alleles that are NOT the risk allele
+          )) |> 
+  dplyr::select(-allele_list) |>             #removes temporary column
+  mutate (is_risk_allele = ifelse(
+    str_detect(alleles, fixed(Risk_Allele)),
+    TRUE,
+    FALSE
+  )) |> 
+  filter(is_risk_allele)
+```
+
+```{r JANITOR CLEAN NAMES}
+strand_gwas_data_separate_allele <- strand_gwas_data_separate_allele |> 
+  janitor::clean_names() 
+```
+
+```{r CREATE GRANGES}
+strand_gwas_data_separate_allele <- strand_gwas_data_separate_allele |> 
+  mutate(
+    Strand = case_when(
+      Strand %in% c("+", "-", "*") ~ Strand,
+      TRUE ~ "*"  # Set invalid values to unknown
+    )
+  )
+
+strand_gwas_data_separate_allele$strand <- NULL
+
+strand_gwas_data_separate_allele <- strand_gwas_data_separate_allele |> 
+  rename(sequence_names = seqnames)  # needed to rename as GRange cant be created with seqnames (and strand) already in use 
+
+ad_snps_gr <- strand_gwas_data_separate_allele |> 
+    mutate(                                                        #check and clean CHR_POS
+    chr_id = paste0('chr', chr_id),
+    chr_pos = suppressWarnings(as.numeric(chr_pos)),                  # Convert to numeric and suppress the warning
+    strand = ifelse(strand %in% c("+", "-"), strand, "*")     # Force valid strand values
+  ) |> 
+  filter(!is.na(chr_pos)) |># Remove problematic rows
+  makeGRangesFromDataFrame(                  # Create GRanges object
+    keep.extra.columns = TRUE,
+    seqnames.field = "chr_id", 
+    start.field = "chr_pos",
+    end.field = "chr_pos",
+    strand.field = "strand"
+)
+
+```
+
+```{r ANNOTATING SNPS}
+ad_normal_genes = build_annotations(genome = 'hg38', annotations = c("hg38_basicgenes")) 
+
+ad_snp_annotated_gr <- annotate_regions(ad_snps_gr,annotations = ad_normal_genes) 
+amigoingmad()
+ad_snp_annotated <- as.data.frame(ad_snp_annotated_gr)
+
+
+
+ad_snp_annotated_strand <- ad_snp_annotated |> 
+ select(seqnames:snps, risk_allele, non_risk, annot.strand) |> 
+  select(-strand) |> # selects but removes strand from it
+  unique() |> # doesnt show repeated data / names 
+  makeGRangesFromDataFrame(    keep.extra.columns = TRUE,
+                               strand.field = 'annot.strand')
+
+
+
+annotated_sequence <- getSeq(BSgenome.Hsapiens.UCSC.hg38, ad_snp_annotated_strand)
+```
+
+```{r SANITY CHECK}
+ad_snp_annotated_strand |> 
+  as.data.frame() |> 
+  mutate(coding = ifelse(strand == "+",
+                         non_risk,
+                         as.character(reverseComplement((DNAStringSet(non_risk)))))) |> 
+  mutate(extracted_sequence = as.character(annotated_sequence))  |> 
+  filter(coding != extracted_sequence)  
+  mutate( 
+    reverse_complement_check = as.character (reverseComplement(DNAStringSet(non_risk))) == extracted_sequence)
+
+table(ad_snp_annotated_strand$strand)
+```
+
+```{r RESIZE}
+ad_snp_anotated_resize <- ad_snp_annotated_strand |> 
+  resize (width = width(ad_snp_annotated_strand) + 74, fix = "center", ignore.strand = FALSE) # CHECK IF 74 CORRECT
+
+ad_seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38, ad_snp_anotated_resize)
+
+ad_snp_annotated_strand$flank_sequence <- as.character(ad_seq_flank)
+```
+
+```{r HEALTHY FLANK SEQUENCE FASTA}
+ad_snp_annotated_strand_df <- as.data.frame(ad_snp_annotated_strand)
+
+colnames(ad_snp_annotated_strand_df)
+ad_snp_annotated_strand_df |> 
+  select(snps, flank_sequence) |> 
+  view()
+
+ad_healthy_DSS <- DNAStringSet(ad_snp_annotated_strand$flank_sequence)
+names(ad_healthy_DSS) <- ad_snp_annotated_strand$snps
+
+writeXStringSet(ad_healthy_DSS, filepath = "ad_healthy_seq_test.fasta")
+
+```
+
+```{r RISK FLANK SEQUENCE FASTA}
+ad_flank_risk_seq <- ad_snp_annotated_strand_df |> 
+  mutate(
+    risk_coding_allele = ifelse(
+      strand == "+",
+      risk_allele,
+      as.character(reverseComplement(DNAStringSet(risk_allele)))
+    )
+    ) |> 
+  mutate(
+    risk_flank = paste0(substr(ad_seq_flank, start = 1, stop = 37), risk_coding_allele,
+                        substr(ad_seq_flank, start = 39, stop = 75))
+  )
+
+colnames(ad_flank_risk_seq)
+ad_flank_risk_seq |> 
+  select(snps, risk_flank) |> 
+  view()
+ad_flank_risk_seq$risk_flank
+
+ad_flank_risk_DSS <- DNAStringSet(ad_flank_risk_seq$risk_flank)
+names(ad_flank_risk_DSS) <- ad_flank_risk_seq$snps
+
+writeXStringSet(ad_flank_risk_DSS, filepath = "ad_risk_test.fasta")
 ```
 
