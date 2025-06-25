@@ -1,0 +1,30 @@
+---
+title: "ad_analysis_code"
+output: html_document
+date: "2025-06-25"
+---
+#Libraries
+```{r LOAD}
+library(GenomicRanges)
+library(tidyverse)
+library(annotatr)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(Biostrings)
+library(rtracklayer)
+library(jsonlite)
+library(ggplot2)
+library(ggpubr)
+library(biomaRt)
+library(patchwork)
+library(corrplot)
+library(data.table)
+library(BiocManager)
+library(SNPlocs.Hsapiens.dbSNP155.GRCh38)
+```
+
+
+#Generating AD SNP sequences for DeepCLip analysis
+```{r READ IN DATA}
+ad_snps_start<- fread("ad_gwas.tsv", sep = "\t") #add here::here
+```
+

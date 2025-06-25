@@ -5,7 +5,7 @@
 # Bin the continuous variable 
 chi2 <- final_result_tbl %>% 
   mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) %>% 
-  select(hm_rsidsnp_in_tdp) %>% 
+  select(hm_rsid,snp_in_tdp) %>% 
   left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many") %>% 
   filter(complete.cases(.)) %>%
   mutate(min_diff_binned = cut(min_diff, 
@@ -56,7 +56,7 @@ fisher.test(contingency_table, workspace = 2e9)
 contingency_table_df <- as.data.frame(contingency_table)
 
 
-library(corrplot)
+
 chi2_plot <- chisq.test(contingency_table)
 
 corrplot(chi2_plot$residuals, is.cor = FALSE, 
