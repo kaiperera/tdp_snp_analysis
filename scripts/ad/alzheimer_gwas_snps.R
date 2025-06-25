@@ -230,7 +230,7 @@ gene_ids <- mapIds(
 gene_id_character <- as.character(gene_ids)
 gene_id_character <- gene_id_character[!is.na(gene_id_character)]
 
-mapped_gene_strands <- select(          #gets strand info from TxDb
+mapped_gene_strands <- AnnotationDbi::select(          #gets strand info from TxDb
   TxDb.Hsapiens.UCSC.hg38.knownGene,
   keys = gene_id_character,
   columns = "TXSTRAND",
@@ -364,7 +364,7 @@ ad_snp_annotated_strand |>
                          non_risk,
                          as.character(reverseComplement((DNAStringSet(non_risk)))))) |> 
   mutate(extracted_sequence = as.character(annotated_sequence))  |> 
-  filter(coding != extracted_sequence)  
+  filter(coding != extracted_sequence) |>  
   mutate( 
     reverse_complement_check = as.character (reverseComplement(DNAStringSet(non_risk))) == extracted_sequence)
 

@@ -2,17 +2,13 @@
 # convert deepclip output to grange ---------------------------------------
 
 ad_gwas1_df <- as.data.frame(ad_gwas1)
+ad_gwas1_df <- ad_gwas1_df |> 
+  rename(snps = id) 
+ad_gwas1_df <- ad_gwas1_df|> 
+  left_join(ad_snp_annotated, by = "snps") |> #get chr and position info from ad_snp_annotated_strand
+  dplyr::relocate(snps)
 
-
-ad_gwas_separate_id <- ad_gwas1_df |> 
-  dplyr::relocate(id) |> #relocates column to start if no position given
-  separate(id,
-           remove = FALSE, # doesnt remove OG column
-           convert = TRUE,   #converts it to numerical rather than character vector
-           sep = '_',
-           into = c('chr','start')) 
-
-ad_gwas_gr <- ad_gwas_separate_id |> 
+ad_gwas_gr <- ad_gwas1_df |> 
   makeGRangesFromDataFrame(
     keep.extra.columns = TRUE,
     seqnames.field = "chr",
@@ -20,4 +16,5 @@ ad_gwas_gr <- ad_gwas_separate_id |>
     end.field = "start",
     strand.field = "annot.strand"
   )
+
 
