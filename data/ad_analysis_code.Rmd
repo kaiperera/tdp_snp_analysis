@@ -349,3 +349,104 @@ for (i in 1:dim(ad_gwas1)[1]) {
 
 ```
 
+# Finding Overlaps between DeepClip output and TDP-43 Binding Regions
+```{r READ IN BED}
+bed_data <- read.table(
+  unz(here::here("data/postar3_tardbp_reduced.bed.zip"),
+  "postar3_tardbp_reduced.bed"),
+  sep = "\t",
+  header = FALSE,
+  stringsAsFactors = FALSE
+)
+```
+
+```{r CONVERT DEEPCLIP INTO GRANGE}
+ad_gwas1_df <- as.data.frame(ad_gwas1)
+
+
+ad_snp_annotated_strand_df <- as.data.frame(ad_snp_annotated_strand) |> 
+  rename(sequence_name = seqnames,
+         start_ = start,
+         end_ = end,
+         width_ = width,
+         strand_ = strand)
+
+ad_gwas1_df <- ad_gwas1_df |> 
+  rename(snps = id)|> 
+  left_join(ad_snp_annotated_strand_df, by = "snps") |> #get chr and position info from ad_snp_annotated_strand
+  dplyr::relocate(snps)  
+  
+
+ad_gwas_gr <- ad_gwas1_df |> 
+  makeGRangesFromDataFrame(
+    keep.extra.columns = TRUE,
+    seqnames.field = "sequence_name",
+    start.field = "start_",
+    end.field = "end_",
+    strand.field = "annot.strand"
+  )
+```
+
+
+```{r CONVERT BED FILE TO GRANGE}
+granges_bed <- GRanges(
+  seqnames = bed_data$V1,
+  ranges = IRanges(start = bed_data$V2 + 1, end = bed_data$V3),  # BED is 0-based, R is 1-based so need to allow for that 
+  strand = ifelse(bed_data$V6 %in% c("+", "-"), bed_data$V6, "*")
+)
+```
+
+
+```{r CHECKING STRAND INFO}
+seqlevels(ad_gwas_gr) <- sub("^chr", "", seqlevels(ad_gwas_gr))
+
+# Connect to Ensembl
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+# Get genes overlapping  GRanges
+genes <- getBM(
+  attributes = c("chromosome_name", "start_position", "end_position", "strand"),
+  filters = c("chromosomal_region"),
+  values = paste0(seqnames(ad_gwas_gr), ":", start(ad_gwas_gr), "-", end(ad_gwas_gr)),
+  mart = ensembl
+)
+
+# Convert numeric strands (1/-1) to character
+genes$strand <- ifelse(genes$strand == 1, "+",
+                       ifelse(genes$strand == -1, "-", "*"))
+
+# Convert to GRanges and assign strands
+ad_gwas_gr_strand <- makeGRangesFromDataFrame(
+  genes,
+  seqnames.field = "chromosome_name",  
+  start.field = "start_position",     
+  end.field = "end_position",        
+  strand.field = "strand",            
+  keep.extra.columns = TRUE           
+)
+hits <- findOverlaps(ad_gwas_gr, ad_gwas_gr_strand)
+strand(ad_gwas_gr)[queryHits(hits)] <- strand(ad_gwas_gr_strand)[subjectHits(hits)]
+
+# Convert chromosome names to UCSC format
+uscs_format <- ifelse(
+  seqlevels(ad_gwas_gr) == "MT",  # Handle mitochondrial case
+  "chrM",
+  paste0("chr", seqlevels(ad_gwas_gr))
+)
+
+# Apply new names
+seqlevels(ad_gwas_gr) <- uscs_format 
+
+```
+
+some differences between strands in ad_snp_annotated and the new generated one, see if i need to remove the old one to avoid confusion/ missing certain snps 
+
+```{r FINDING OVERLAPS}
+ad_gwas_gr <- unique(ad_gwas_gr)
+
+ad_binding_overlap <- subsetByOverlaps(ad_gwas_gr,
+                                       granges_bed,
+                                       maxgap = 200,
+                                       ignore.strand = FALSE)
+```
+
