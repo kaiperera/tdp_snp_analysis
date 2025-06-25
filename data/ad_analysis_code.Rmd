@@ -451,3 +451,4 @@ ad_binding_overlap <- subsetByOverlaps(ad_gwas_gr,
                                        ignore.strand = FALSE)
 ```
 
+might have to delete some of above from strand info down depending on outcome of mapping genes 
