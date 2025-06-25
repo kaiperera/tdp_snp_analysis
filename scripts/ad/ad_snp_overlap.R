@@ -10,12 +10,12 @@ ad_gwas1_df <- ad_gwas1_df |>
 ad_gwas_gr <- ad_gwas1_df |> 
   makeGRangesFromDataFrame(
     keep.extra.columns = TRUE,
-    seqnames.field = "chr",
+    seqnames.field = "seqnames",
     start.field = "start",
     end.field = "start",
     strand.field = "annot.strand"
   )
-
+#fix grange 
 
 
 
