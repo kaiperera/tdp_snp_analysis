@@ -10,6 +10,7 @@ library(Biostrings)
 library(data.table)
 library(BiocManager)
 library(SNPlocs.Hsapiens.dbSNP155.GRCh38)
+library(AnnotationDbi)
 
 # read in data  -----------------------------
 

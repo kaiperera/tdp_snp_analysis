@@ -20,6 +20,8 @@ library(corrplot)
 library(data.table)
 library(BiocManager)
 library(SNPlocs.Hsapiens.dbSNP155.GRCh38)
+library(org.Hs.eg.db) 
+library(AnnotationDbi)
 ```
 
 
@@ -74,6 +76,7 @@ ad_gwas_removed_context <- anti_join(
 
 ```{r GET STRAND INFO}
 mapped_gene_symbols <- ad_gwas_removed_context$MAPPED_GENE # gets ENTREZ IDs
+
 gene_ids <- mapIds(
   org.Hs.eg.db,
   keys = mapped_gene_symbols,
