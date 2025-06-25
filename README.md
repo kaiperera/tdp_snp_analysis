@@ -2,7 +2,7 @@
 Is TDP-43 proteinopathy prevalent in other neurodegenerative disease aside from ALS/FTD?
 add contents table when done 
 go into detail as to what happens in each file
-## R Files Overview
+## ALS R Files 
 ```generate_als_snps_sequences```= generates fasta files for healthy (healthy_flank_seq2) and risk (risk_flank_seq) flanks for ALS  
 
 ```bed_file_read``` = reads in bedfile postar3_tardbp_reduced.bed.zip - TDP-43 binding sites   
@@ -14,5 +14,8 @@ go into detail as to what happens in each file
 ```als_snps_in_binding_regions_boxplot``` = Ascertain how many SNPs from the DeepClip output are also present in TDP-43 binding regions, make a boxplot for visualisation,are both SNPs of interest also present in binding regions  
 ```als_analysis_code``` = markdown file consolidating all the ALS scripts in one place  
 
-```alzheimer_gwas_snps``` = snps generated using a GWAS - cleaned up the tsv data in order to generate fasta files for healthy and risk flanks for AD 
-
+## AD R FILES
+```alzheimer_gwas_snps``` = snps generated using a GWAS - cleaned up the tsv data in order to generate fasta files for healthy and risk flanks for AD   
+```ad_binding_profiles_read_in``` = reads in AD DeepClip output, code for outputtin binding profiles for this  
+```ad_snp_overlap``` = finding overlaps between DeepClip output and TDP_43 binding sites   
+```ad_analysis_code``` = markdown file consolidating all AD scripts 
