@@ -350,7 +350,7 @@ for (i in 1:dim(ad_gwas1)[1]) {
 
 ```
 
-# Finding Overlaps between DeepClip output and TDP-43 Binding Regions
+# Finding Overlaps between AD DeepClip output and TDP-43 Binding Regions
 ```{r READ IN BED}
 bed_data <- read.table(
   unz(here::here("data/postar3_tardbp_reduced.bed.zip"),
@@ -440,15 +440,59 @@ seqlevels(ad_gwas_gr) <- uscs_format
 
 ```
 
-some differences between strands in ad_snp_annotated and the new generated one, see if i need to remove the old one to avoid confusion/ missing certain snps 
+some differences between strands in ad_snp_annotated and the strand info from ensembl, most likely due to antisense data
+
+```{r INVESTIGATING STRAND DIFFERENCES}
+#shows genes where the strand info is different  
+differing_strands <- ad_gwas_gr |>
+  as.data.frame()  |> 
+  left_join(
+    ad_snp_annotated |> 
+      select(snps,mapped_gene),
+    by = "snps"
+  ) |> 
+  dplyr::relocate(mapped_gene) |> 
+  dplyr::filter(strand != strand_)
+
+```
+
+```{r PUT DOUBLE STRAND GENES IN SEPARATE DF AND REMOVE FROM ad_gwas_gr}
+#all the gene names that have different strands without repeating itself 
+differing_strands |> 
+  distinct(mapped_gene) |> 
+  pull(mapped_gene)
+
+#dont unique ad_gwas_gr or differing_strands until after getting rid of the genes 
+
+different_strands_for_analysis <- ad_gwas_gr |>
+  as.data.frame() |> 
+  dplyr::filter(strand != strand_) |> 
+  relocate(strand_, .after = strand) |> 
+  view()
+
+#stores conflicting strands
+different_strands_for_analysis_gr <- different_strands_for_analysis |> 
+  makeGRangesFromDataFrame(
+    keep.extra.columns = TRUE
+  )
+
+#removes any of the conflicting strands
+ad_gwas_gr_filtered <- ad_gwas_gr[!ad_gwas_gr %over% different_strands_for_analysis_gr] |> 
+  as.data.frame() |> 
+  dplyr::relocate(strand_, .after = strand) |> 
+  makeGRangesFromDataFrame(keep.extra.columns = TRUE)
+
+
+```
+
+
 
 ```{r FINDING OVERLAPS}
-ad_gwas_gr <- unique(ad_gwas_gr)
+ad_gwas_gr_filtered <- unique(ad_gwas_gr_filtered)
 
-ad_binding_overlap <- subsetByOverlaps(ad_gwas_gr,
+ad_binding_overlap <- subsetByOverlaps(ad_gwas_gr_filtered,
                                        granges_bed,
                                        maxgap = 200,
                                        ignore.strand = FALSE)
 ```
 
-might have to delete some of above from strand info down depending on outcome of mapping genes 

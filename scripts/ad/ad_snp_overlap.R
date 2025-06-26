@@ -78,13 +78,63 @@ uscs_format <- ifelse(
 seqlevels(ad_gwas_gr) <- uscs_format 
 
 
+# investigating differences: getting gene names for differing snps -----------------------------------------------
+
+#shows genes where the strand info is different  
+differing_strands <- ad_gwas_gr |>
+  as.data.frame()  |> 
+  left_join(
+    ad_snp_annotated |> 
+      select(snps,mapped_gene),
+    by = "snps"
+  ) |> 
+  dplyr::relocate(mapped_gene) |> 
+  dplyr::filter(strand != strand_)
+
+differing_strands <- unique(differing_strands)
+
+
+ad_binding_overlap |> 
+  as.data.frame() |> 
+  dplyr::filter(strand != strand_)
+
+
+
+
+
+# put the double strand genes in a separate dataframe  --------------------
+#all the gene names that have different strands without repeating itself 
+#dont unique ad_gwas_gr or differing_strands until after getting rid of the genes 
+differing_strands |> 
+  distinct(mapped_gene) |> 
+  pull(mapped_gene)
+
+
+different_strands_for_analysis <- ad_gwas_gr |>
+  as.data.frame() |> 
+  dplyr::filter(strand != strand_) |> 
+  relocate(strand_, .after = strand) |> 
+  view()
+
+#stores conflicting strands
+different_strands_for_analysis_gr <- different_strands_for_analysis |> 
+  makeGRangesFromDataFrame(
+    keep.extra.columns = TRUE
+  )
+
+#removes any of the conflicting strands
+ad_gwas_gr_filtered <- ad_gwas_gr[!ad_gwas_gr %over% different_strands_for_analysis_gr] |> 
+  as.data.frame() |> 
+  dplyr::relocate(strand_, .after = strand) |> 
+  makeGRangesFromDataFrame(keep.extra.columns = TRUE)
+
 
 
 # finding overlaps --------------------------------------------------------
 
-ad_gwas_gr <- unique(ad_gwas_gr)
+ad_gwas_gr_filtered <- unique(ad_gwas_gr_filtered)
 
-ad_binding_overlap <- subsetByOverlaps(ad_gwas_gr,
+ad_binding_overlap <- subsetByOverlaps(ad_gwas_gr_filtered,
                                        granges_bed,
                                        maxgap = 200,
                                        ignore.strand = FALSE)
@@ -98,53 +148,6 @@ ad_binding_overlap |>
   view() 
 
 
-# Replace the ensembl strand with the txdb one
-ad_gwas_txdb <- ad_gwas_gr
-
-strand(ad_gwas_txdb) <- ad_gwas_gr$strand_
-
-ad_binding_overlap_txdb <- subsetByOverlaps(ad_gwas_txdb,
-                                            granges_bed,
-                                            maxgap = 200,
-                                            ignore.strand = FALSE)
 
 
 
-
-# investigating differences: getting gene names for differing snps -----------------------------------------------
-
-#shows genes where the strand info is different  
-differing_strands <- ad_gwas_gr |>
-  as.data.frame()  |> 
-  left_join(
-    ad_snp_annotated |> 
-      select(snps,mapped_gene),
-    by = "snps"
-    ) |> 
-  dplyr::relocate(mapped_gene) |> 
-  dplyr::filter(strand != strand_)
-  
-
-
-ad_binding_overlap |> 
-  as.data.frame() |> 
-  dplyr::filter(strand != strand_)
-
-unique_txdb <- GenomicRanges::setdiff(ad_binding_overlap_txdb, 
-                                      ad_binding_overlap,
-                                      ignore.strand = FALSE)
-unique(unique_txdb$snps) |> view()
-
-
-
-
-# put the double strand genes in a separate dataframe  --------------------
-#all the gene names that have different strands without repeating itself 
-differing_strands |> 
-  distinct(mapped_gene) |> 
-  pull(mapped_gene)
-
-
-
-  
-  
