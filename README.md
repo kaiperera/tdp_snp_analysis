@@ -12,10 +12,13 @@ go into detail as to what happens in each file
 ```als_snp_overlap_binding_regions``` = converts bed_data to GRange, provides strand info / rsIDs for ALS DeepClip output, finds overlaps between DeepClip output and TDP_43 binding sites, exports PDFs of binding profiles for CE_SNP and intronic_SNP  
 ```als_min_max_histograms``` = Ascertain the difference between minimumm and maximum DeepClip scores per SNP and generating histograms to visualise   
 ```als_snps_in_binding_regions_boxplot``` = Ascertain how many SNPs from the DeepClip output are also present in TDP-43 binding regions, make a boxplot for visualisation,are both SNPs of interest also present in binding regions  
+```are_tdp43_binding_snps_disruptive``` = Run chi2 and fisher exact tests to answer the question "Are SNPs found in TDP-43 binding regions disruptive?" with plots for visualisation
 ```als_analysis_code``` = markdown file consolidating all the ALS scripts in one place  
 
 ## AD R FILES
 ```alzheimer_gwas_snps``` = snps generated using a GWAS - cleaned up the tsv data in order to generate fasta files for healthy and risk flanks for AD   
-```ad_binding_profiles_read_in``` = reads in AD DeepClip output, code for outputtin binding profiles for this  
-```ad_snp_overlap``` = finding overlaps between DeepClip output and TDP_43 binding sites   
+```ad_binding_profiles_read_in``` = reads in AD DeepClip output, code for outputting binding profiles for this  
+```ad_snp_overlap``` = finding overlaps between DeepClip output and TDP_43 binding sites, outputs binding profiles for snps that overlap TDP-43 binding regions  
+```ad_min_max_histogram``` = Ascertain the difference between minimumm and maximum DeepClip scores per SNP and generating histograms to visualise   
+```ad_binding_region_snps_boxplot``` = Ascertain how many SNPs from the DeepClip output are also present in TDP-43 binding regions, make a boxplot for visualisation, run statistical tests to see if there are significant differences in disruption/min_diff distribution between non-binding and binding region SNPs (plots for visualisation)       
 ```ad_analysis_code``` = markdown file consolidating all AD scripts 
