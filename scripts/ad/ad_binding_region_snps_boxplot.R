@@ -90,3 +90,6 @@ ggplot(ad_chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
     color = "olivedrab3"
   ) +
   theme_bw() 
+
+
+#also do welch and kruskal 
