@@ -40,7 +40,7 @@ snp_alleles_unique <- unique(snp_alleles, by = "RefSNP_id")
 ad_gwas_annotated <- merge(ad_snps_start, snp_alleles_unique,
                            by.x = "SNPS", by.y = "RefSNP_id", all.x = TRUE)
 
-view(ad_gwas_annotated)
+
 iupac_codes <- c(
   "M" = "A/C", "K" = "G/T", "R" = "A/G", "Y" = "C/T",
   "S" = "G/C", "W" = "A/T", "B" = "C/G/T", "D" = "A/G/T"

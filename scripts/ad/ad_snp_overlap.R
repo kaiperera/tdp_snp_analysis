@@ -87,33 +87,64 @@ ad_gwas_gr <- unique(ad_gwas_gr)
 ad_binding_overlap <- subsetByOverlaps(ad_gwas_gr,
                                        granges_bed,
                                        maxgap = 200,
-                                       ignore.strand = TRUE)
+                                       ignore.strand = FALSE)
 
 #52 entries when using ensembl strand info - 53 w (american) annotated info - 56 when ignoring strand 
-
+#strand = ensembl, strand_ = ncbi
 
 ad_binding_overlap |> 
   as.data.frame() |> 
   select(snps, strand, strand_) |> 
-  view() #strands seem to match here , double check why
+  view() 
 
 
+# Replace the ensembl strand with the txdb one
+ad_gwas_txdb <- ad_gwas_gr
 
-# Replace the main strand with the annotated one
-strand(ad_gwas_gr) <- ad_gwas_gr$strand_
+strand(ad_gwas_txdb) <- ad_gwas_gr$strand_
 
-#chr1 using annotated strand but not with ensembl strand - only difference 
+ad_binding_overlap_txdb <- subsetByOverlaps(ad_gwas_txdb,
+                                            granges_bed,
+                                            maxgap = 200,
+                                            ignore.strand = FALSE)
+
 
 
 
 # investigating differences: getting gene names for differing snps -----------------------------------------------
-#had used mapped gene for annotations 
+
+#shows genes where the strand info is different  
 differing_strands <- ad_gwas_gr |>
-  as.data.frame() |> 
-  left_join(ad_snp_annotated, by = "seqnames") #|> 
-  dplyr::select(snps, strand, strand_)
+  as.data.frame()  |> 
+  left_join(
+    ad_snp_annotated |> 
+      select(snps,mapped_gene),
+    by = "snps"
+    ) |> 
+  dplyr::relocate(mapped_gene) |> 
+  dplyr::filter(strand != strand_)
   
+
+
+ad_binding_overlap |> 
+  as.data.frame() |> 
+  dplyr::filter(strand != strand_)
+
+unique_txdb <- GenomicRanges::setdiff(ad_binding_overlap_txdb, 
+                                      ad_binding_overlap,
+                                      ignore.strand = FALSE)
+unique(unique_txdb$snps) |> view()
+
+
+
+
+# put the double strand genes in a separate dataframe  --------------------
+#all the gene names that have different strands without repeating itself 
+differing_strands |> 
+  distinct(mapped_gene) |> 
+  pull(mapped_gene)
+
+
 
   
   
-  # map genes to snps that differ - see if theyre important genes 
