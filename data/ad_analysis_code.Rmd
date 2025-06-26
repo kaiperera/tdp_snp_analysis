@@ -642,7 +642,7 @@ ggplot(snps_in_binding_regions, aes(x = snp_in_tdp, y = min_diff)) +
 ```
 Boxplot = similar overlap so similar distribution
 
-
+MAY NOT HAVE NEEDED TO DO CHI2 AND FISHER YET 
 ```{r CHI2 AND FISHER}
 #for now, splitting data in 2 bins around median
 
@@ -709,3 +709,12 @@ t.test(min_diff ~ snp_in_tdp, data = snps_in_binding_regions)
 
 ```
 p > 0.05 - snps in binding regions don't have a significantly different min_diff distribution than snps not in binding regions 
+
+
+Binding Region SNPs near TDP-43 Splice Junctions
+Getting SNPs in binding regions with a greater/equal predicted effect than median
+Seeing if these are within 500 bps of splice junctions
+```{r READ IN SPLICE DATA}
+tdp_splicing_events <- read.csv(here::here("data/tdp_splicing_events.csv"))
+```
+
