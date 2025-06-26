@@ -148,6 +148,70 @@ ad_binding_overlap |>
   view() 
 
 
+ad_binding_overlap <- as.data.frame(ad_binding_overlap)
 
 
+# binding profiles for overlapping regions  -------------------------------
 
+ad_binding_overlap$variant_sequence = gsub("T", "U", ad_binding_overlap$variant_sequence)  #makes sure its RNA sequence
+ad_binding_overlap$variant_sequence = gsub("t", "u", ad_binding_overlap$variant_sequence)
+ad_binding_overlap$sequence = gsub("T", "U", ad_binding_overlap$sequence)
+ad_binding_overlap$sequence = gsub("t", "u", ad_binding_overlap$sequence)
+
+# FUNCTION CREATION
+paired_plot <- function(ad_binding_overlap, plot_difference) {      #    plot_difference =  function parameter (like a switch) that determines whether the plot shows: FALSE = raw weights for both sequences, TRUE = difference between weights
+  weights1 <- unlist(x$weights)
+  weights2 <- unlist(x$variant_weights)
+  
+  seq1 <- strsplit(toupper(ad_binding_overlap$sequence), "")[[1]]      # prepares code for comparison - toupper = all upper case, strsplit = splits character string into individual characters, [1] = select first element from each list returned by strsplit 
+  seq2 <- strsplit(toupper(ad_binding_overlap$variant_sequence), "")[[1]]  # output = character vectors 
+  
+  if(plot_difference) {    #for plot_difference = TRUE
+    weights2 <- weights2 - weights1  #calculates difference (variant - reference)
+    tbl <- data.frame(
+      pos = seq_along(seq2),
+      weight = weights2,        #difference values
+      group = factor(rep("difference", length(seq2))) # all rows labelled difference 
+    )
+  } else {      #for plot_difference = FALSE 
+    tbl <- data.frame(
+      pos = c(seq_along(seq1), seq_along(seq2)), # combines positions for both sequences 
+      weight = c(weights1, weights2),     #stacks reference and variants weights 
+      group = factor(c(rep("reference", length(seq1)), rep("variant", length(seq2))), levels=c("reference","variant"))
+    )   #explicit factor levels 
+  }
+  
+  
+  xlabels <- mapply(function(a, b) paste(a, ifelse(a==b, "", b), sep="\n"), seq1, seq2) # visual comparison of sequences via stacking them vertically and highlighting differences 
+  
+  p <- ggplot(tbl, aes(pos, weight))
+  if(plot_difference) p <- p + geom_hline(yintercept=0, color="dodgerblue") # only if plot_difference = TRUE - adds horizontal blue line at y intercept to show no difference - helps visualise positive and negative difference 
+  p <- p +
+    geom_line(aes(color=group), size=0.8) +
+    scale_x_continuous(breaks=seq(1, max(tbl$pos)), labels=xlabels) +   #x-axis ticks at each position
+    scale_color_manual(values=c("black", "red")) +
+    clean_theme() +
+    theme(
+      legend.title = element_blank(),
+      axis.title.x = element_blank(),
+      axis.text.x = element_text(size=11)
+    ) + labs(y="DeepCLIP score")
+  return(p)
+}
+
+for (i in 1:dim(ad_binding_overlap)[1]) {  
+  x = ad_binding_overlap[i,]
+  rsID <- x$snps
+  width = 10.5   
+  height = 3.65
+  if (length(ad_binding_overlap$weights[[1]]) <= 30) {width = 7.75}
+  p = paired_plot(ad_binding_overlap, plot_difference = FALSE)  
+  pdf(paste0(rsID,".pdf"), width = width, height = height)  
+  print(p)
+  dev.off()
+  
+  p_diff = paired_plot(ad_binding_overlap, plot_difference = TRUE)
+  pdf(paste0(rsID,".difference.pdf"), width = width, height = height)
+  print(p_diff)
+  dev.off()
+}
