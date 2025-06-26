@@ -564,3 +564,80 @@ for (i in 1:dim(ad_binding_overlap)[1]) {
 }
 ```
 
+
+# Finding Minimum and Maximum DeepClip scores and Making Histograms
+```{r MIN AND MAX VALUES FOR ALL SNPS}
+ad_gwas_filtered_df <- as.data.frame(ad_gwas_gr_filtered)
+
+
+ad_filtered_scores <- ad_gwas_gr_filtered_df |>
+  group_by(score) |> 
+  select(snps, weights, variant_weights) |> 
+  unnest(weights, variant_weights) |> 
+  mutate(diff = variant_weights - weights)
+
+
+min_max_scores <- ad_filtered_scores |> 
+  summarise(
+    min_diff = min(diff), na.rm = TRUE,
+    max_diff = max(diff), na.rm = TRUE
+  )
+
+
+data_for_histogram <- left_join(ad_filtered_scores, min_max_scores, by = "score")
+
+```
+
+
+```{r HISTOGRAMS}
+p1 <- ggplot(data_for_histogram, aes(x = min_diff)) +
+  geom_histogram(bins = 100, fill = "peru", color = "black") +
+  labs(title = "Minimum Score Distribution",
+       x = "DeepCLIP Minimum Score", 
+       y = "Count") +
+  theme_bw()
+
+
+#Histogram for maximum score
+p2 <-ggplot(data_for_histogram, aes(x = max_diff)) +
+  geom_histogram(bins = 100, fill = "mediumaquamarine", color = "midnightblue") +
+  labs(title = "Maximum Score Distribution",
+       x = "DeepCLIP Maximum Score", 
+       y = "Count") +
+  theme_bw()
+
+p1/p2
+
+```
+
+
+
+#Discovering How Many SNPs from the GWAS are also in Binding Regions with Boxplot
+```{r BOXPLOT}
+ount(ad_binding_overlap) #48 snps in binding region
+
+
+unique_score_rsid <- data_for_histogram |> 
+  ungroup() |> 
+  distinct(snps, min_diff, max_diff)
+
+
+snps_in_binding_regions <- ad_gwas_filtered_df |> 
+  mutate(snp_in_tdp = snps %in% ad_binding_overlap$snps) |> 
+  select(snps, snp_in_tdp) |> 
+  left_join(unique_score_rsid)
+
+
+
+ggplot(snps_in_binding_regions, aes(x = snp_in_tdp, y = min_diff)) +
+  geom_boxplot(fill = "plum2",
+               colour = "indianred2") +
+  labs(title = "Min_Diff Distribution of SNPs based on Binding Region Presence",
+       x = "SNP in Binding Region Status",
+       y = "Minimum Difference") +
+  theme_bw() +
+  stat_compare_means(vjust = 10,
+                     hjust = -0.5) 
+
+```
+
