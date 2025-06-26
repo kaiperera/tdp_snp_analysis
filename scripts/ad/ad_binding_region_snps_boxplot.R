@@ -2,7 +2,7 @@
 
 
 # boxplot -----------------------------------------------------------------
-#MAY NOT HAVE NEEDED TO DO THIS HERE
+
 count(ad_binding_overlap) #48 snps in binding region
 
 
@@ -30,6 +30,9 @@ ggplot(snps_in_binding_regions, aes(x = snp_in_tdp, y = min_diff)) +
 
 
 # chi2 and fisher ---------------------------------------------------------
+#MAY NOT HAVE NEEDED TO DO THIS HERE
+
+
 #for now, splitting data in 2 bins around median
 
 median_value <- median(ad_chi2$min_diff, na.rm = TRUE)
