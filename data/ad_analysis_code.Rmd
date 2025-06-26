@@ -614,7 +614,7 @@ p1/p2
 
 #Discovering How Many SNPs from the GWAS are also in Binding Regions with Boxplot
 ```{r BOXPLOT}
-ount(ad_binding_overlap) #48 snps in binding region
+count(ad_binding_overlap) #48 snps in binding region
 
 
 unique_score_rsid <- data_for_histogram |> 
@@ -640,6 +640,8 @@ ggplot(snps_in_binding_regions, aes(x = snp_in_tdp, y = min_diff)) +
                      hjust = -0.5) 
 
 ```
+Boxplot = similar overlap so similar distribution
+
 
 ```{r CHI2 AND FISHER}
 #for now, splitting data in 2 bins around median
@@ -649,10 +651,6 @@ median_value <- median(ad_chi2$min_diff, na.rm = TRUE)
 ad_chi2 <- snps_in_binding_regions %>%
   filter(complete.cases(.)) %>%
   mutate(min_diff_binned = ifelse(min_diff <= median_value, "Low", "High"))
-
-
-  
-  
   
   contingency_table <- table(ad_chi2$snp_in_tdp, ad_chi2$min_diff_binned)
 
@@ -700,4 +698,14 @@ ggplot(ad_chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
   ) +
   theme_bw() 
 ```
+p values for chi2 and fishers are > 0.05 - no significant association between enhances disruption and whether SNP lies in TDP-43 binding region
 
+```{r KRUSKAL WALLIS AND WELCH}
+snps_in_binding_regions %>% 
+  kruskal.test(min_diff ~ snp_in_tdp, data =.) 
+
+t.test(min_diff ~ snp_in_tdp, data = snps_in_binding_regions) 
+
+
+```
+p > 0.05 - snps in binding regions don't have a significantly different min_diff distribution than snps not in binding regions 

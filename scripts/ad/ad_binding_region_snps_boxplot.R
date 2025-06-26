@@ -2,7 +2,7 @@
 
 
 # boxplot -----------------------------------------------------------------
-
+#MAY NOT HAVE NEEDED TO DO THIS HERE
 count(ad_binding_overlap) #48 snps in binding region
 
 
@@ -92,4 +92,13 @@ ggplot(ad_chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
   theme_bw() 
 
 
-#also do welch and kruskal 
+
+# kruskal wallis and welch ------------------------------------------------
+snps_in_binding_regions %>% 
+  kruskal.test(min_diff ~ snp_in_tdp, data =.) 
+#Kruskal-Wallis chi-squared = 0.023082, df = 1, p-value = 0.8792
+
+
+#Welch
+t.test(min_diff ~ snp_in_tdp, data = snps_in_binding_regions) 
+#t = -0.36909, df = 69.083, p-value = 0.7132
