@@ -48,11 +48,35 @@ further_splicing_event_flank <- further_splicing_event_flank[start(further_splic
 
 # binding snp overlaps ----------------------------------------------------
 
-expanded_snps <- resize(binding_snps_gr, width = 500, fix = "center") 
+further_expanded_snps_bind <- resize(binding_snps_gr, width = 500, fix = "center") 
 
-splice_overlaps <- findOverlaps(
+further_splice_overlaps <- findOverlaps(
   query = expanded_snps,
   subject = splicing_event_flank,
   ignore.strand = FALSE  
 )
-expanded_snps <- resize(any_snps_gr, width = 500, fix = "center")
+further_expanded_snps_any <- resize(any_snps_gr, width = 500, fix = "center")
+
+
+
+
+# plotting no results -----------------------------------------------------
+
+
+
+
+null_data <- data.frame(x = rnorm(1000, mean = 0, sd = 1))
+
+ggplot(null_data, aes(x = x)) +
+  geom_histogram(fill = "lightblue", bins = 30) +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = 0, y = Inf, label = "Expected under null", 
+           vjust = 2, color = "red") +
+  labs(title = "No Significant Deviation from Null", 
+       x = "Test Statistic", 
+       y = "Frequency") +
+  theme_minimal()
+
+
+
+             

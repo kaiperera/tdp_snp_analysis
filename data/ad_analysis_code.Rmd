@@ -570,7 +570,7 @@ for (i in 1:dim(ad_binding_overlap)[1]) {
 ad_gwas_filtered_df <- as.data.frame(ad_gwas_gr_filtered)
 
 
-ad_filtered_scores <- ad_gwas_gr_filtered_df |>
+ad_filtered_scores <- ad_gwas_filtered_df |>
   group_by(score) |> 
   select(snps, weights, variant_weights) |> 
   unnest(weights, variant_weights) |> 
@@ -649,8 +649,8 @@ MAY NOT HAVE NEEDED TO DO CHI2 AND FISHER YET
 median_value <- median(ad_chi2$min_diff, na.rm = TRUE)
 
 ad_chi2 <- snps_in_binding_regions %>%
-  filter(complete.cases(.)) %>%
-  mutate(min_diff_binned = ifelse(min_diff <= median_value, "Low", "High"))
+  dplyr::filter(complete.cases(.))  %>%
+  dplyr::mutate(min_diff_binned = ifelse(min_diff <= median_value, "Low", "High"))
   
   contingency_table <- table(ad_chi2$snp_in_tdp, ad_chi2$min_diff_binned)
 
@@ -909,14 +909,14 @@ splicing_event_flank <- splicing_event_flank[start(splicing_event_flank) > 0]
 ```
 
 ```{r ANY OVERLAPS?}
-expanded_snps <- resize(binding_snps_gr, width = 500, fix = "center") 
+expanded_snps_bind <- resize(binding_snps_gr, width = 500, fix = "center") 
 
 splice_overlaps <- findOverlaps(
   query = expanded_snps,
   subject = splicing_event_flank,
   ignore.strand = FALSE  
 )
- expanded_snps <- resize(any_snps_gr, width = 500, fix = "center")
+ expanded_snps_any <- resize(any_snps_gr, width = 500, fix = "center")
 
 #apparently no overlaps at all - tried w binding and any 
 ```
@@ -971,14 +971,28 @@ further_splicing_event_flank <- further_splicing_event_flank[start(further_splic
 ```
 
 ```{r ANY SNP OVERLAPS?}
-expanded_snps <- resize(binding_snps_gr, width = 500, fix = "center") 
+further_expanded_snps_bind <- resize(binding_snps_gr, width = 500, fix = "center") 
 
-splice_overlaps <- findOverlaps(
+further_splice_overlaps <- findOverlaps(
   query = expanded_snps,
   subject = splicing_event_flank,
   ignore.strand = FALSE  
 )
-expanded_snps <- resize(any_snps_gr, width = 500, fix = "center")
+further_expanded_snps_any <- resize(any_snps_gr, width = 500, fix = "center")
 
+```
+
+```{r PLOTTING NO RESULTS APPLICABLE FOR BOTH SPLICE SITE OVERLAPS}
+null_data <- data.frame(x = rnorm(1000, mean = 0, sd = 1)) #creates empty df
+
+ggplot(null_data, aes(x = x)) +
+  geom_histogram(fill = "lightblue", colour = "chocolate3", bins = 30) +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = 0, y = Inf, label = "Expected under null", 
+           vjust = 2, color = "red") +
+  labs(title = "No Significant Deviation from Null", 
+       x = "Test Statistic", 
+       y = "Frequency") +
+  theme_minimal()
 ```
 
