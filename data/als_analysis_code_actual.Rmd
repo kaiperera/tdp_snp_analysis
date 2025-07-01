@@ -941,6 +941,8 @@ contingency_table <- table(chi2$snp_in_tdp, chi2$min_diff_binned)
     }
     
     print(result)
+    
+fisher_result <- fisher.test(contingency_table) 
 ```
 p-value >0.05 so no significant association between snp in binding region and min diff - not necessarily more disruptive if in binding region
 results = X-squared = 1.1223, df = 1, p-value = 0.2894

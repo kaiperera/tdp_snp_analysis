@@ -42,7 +42,9 @@ ad_chi2 <- snps_in_binding_regions %>%
   mutate(min_diff_binned = ifelse(min_diff <= median_value, "Low", "High"))
 
 
-  
+ad_chi2 <- snps_in_binding_regions %>%
+  dplyr::filter(complete.cases(.)) %>%
+  dplyr::mutate(min_diff_binned = ifelse(min_diff <= median(min_diff, na.rm = TRUE), "Low", "High"))
   
   
   contingency_table <- table(ad_chi2$snp_in_tdp, ad_chi2$min_diff_binned)

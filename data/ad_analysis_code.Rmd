@@ -646,11 +646,9 @@ MAY NOT HAVE NEEDED TO DO CHI2 AND FISHER YET
 ```{r CHI2 AND FISHER}
 #for now, splitting data in 2 bins around median
 
-median_value <- median(ad_chi2$min_diff, na.rm = TRUE)
-
 ad_chi2 <- snps_in_binding_regions %>%
-  dplyr::filter(complete.cases(.))  %>%
-  dplyr::mutate(min_diff_binned = ifelse(min_diff <= median_value, "Low", "High"))
+  dplyr::filter(complete.cases(.)) %>%
+  dplyr::mutate(min_diff_binned = ifelse(min_diff <= median(min_diff, na.rm = TRUE), "Low", "High"))
   
   contingency_table <- table(ad_chi2$snp_in_tdp, ad_chi2$min_diff_binned)
 
@@ -724,13 +722,13 @@ greater_equal_median <- ad_gwas_filtered_df |>
   filter(snp_in_tdp) |> 
   select(snps, seqnames, start, end) |> 
   left_join(unique_score_rsid, by = "snps") |> 
-  filter(min_diff <= median_value)
+  filter(min_diff <= median(min_diff, na.rm = TRUE))
 
 #for snps not necessarily in binding region
 any_snps <- ad_gwas_filtered_df |> 
   select(snps, seqnames, start, end) |> 
   left_join(unique_score_rsid, by = "snps") |> 
-  filter(min_diff <= median_value)
+  filter(min_diff <= median(min_diff, na.rm = TRUE))
 ```
 
 ```{r r SEPARATE SPLICING EVENT COLUMNS INTO CHR, START AND END}
