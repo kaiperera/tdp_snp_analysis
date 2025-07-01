@@ -928,7 +928,7 @@ chi2 <- final_result_tbl %>%
   select(hm_rsid,snp_in_tdp) %>% 
   left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many") %>% 
   filter(complete.cases(.)) %>%
-  mutate(min_diff_binned = if_else(min_diff <=  -0.1398594 , "Low (<=CE_SNP)", "High (> CE_SNP)"))
+  mutate(min_diff_binned = if_else(min_diff <=  -0.1398594 , "More Disruptive (<=CE_SNP)", "Less Disruptive (> CE_SNP)"))
 #bin into 2 - those w same amount of disruption as CE SNP and those that don't
 
 contingency_table <- table(chi2$snp_in_tdp, chi2$min_diff_binned)
@@ -970,7 +970,7 @@ ggplot(chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
   geom_col(position = "dodge") +
   labs(x = "SNP in TDP-43 Binding Region",
        y = "Number of SNPs",
-       fill = "CE_SNP-Relative Difference") + # see if can come up w better name for this later
+       fill = "Disruption Levels") + # see if can come up w better name for this later
   annotate(
     "text",             # Type of annotation (text)
     x = Inf, y = Inf,   # Position: top-right corner of the plot

@@ -648,7 +648,7 @@ MAY NOT HAVE NEEDED TO DO CHI2 AND FISHER YET
 
 ad_chi2 <- snps_in_binding_regions %>%
   dplyr::filter(complete.cases(.)) %>%
-  dplyr::mutate(min_diff_binned = ifelse(min_diff <= median(min_diff, na.rm = TRUE), "Low", "High"))
+  dplyr::mutate(min_diff_binned = ifelse(min_diff <= median(min_diff, na.rm = TRUE), "More Disruptive", "Less Disruptive"))
   
   contingency_table <- table(ad_chi2$snp_in_tdp, ad_chi2$min_diff_binned)
 
@@ -675,7 +675,7 @@ ggplot(ad_chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
   geom_col(position = "dodge") +
   labs(x = "SNP in TDP-43 Binding Region",
        y = "Number of SNPs",
-       fill = "Minimum Difference") +
+       fill = "Disruption Level") +
   annotate(
     "text",
     x = Inf, y = Inf,
@@ -692,7 +692,7 @@ ggplot(ad_chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
     hjust = 1.1,
     vjust = 3.0,
     size = 3,
-    color = "olivedrab3"
+    color = "red"
   ) +
   theme_bw() 
 ```
@@ -910,7 +910,7 @@ splicing_event_flank <- splicing_event_flank[start(splicing_event_flank) > 0]
 expanded_snps_bind <- resize(binding_snps_gr, width = 500, fix = "center") 
 
 splice_overlaps <- findOverlaps(
-  query = expanded_snps,
+  query = expanded_snps_bind,
   subject = splicing_event_flank,
   ignore.strand = FALSE  
 )
@@ -972,7 +972,7 @@ further_splicing_event_flank <- further_splicing_event_flank[start(further_splic
 further_expanded_snps_bind <- resize(binding_snps_gr, width = 500, fix = "center") 
 
 further_splice_overlaps <- findOverlaps(
-  query = expanded_snps,
+  query = further_expanded_snps_bind,
   subject = splicing_event_flank,
   ignore.strand = FALSE  
 )

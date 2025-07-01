@@ -35,16 +35,11 @@ ggplot(snps_in_binding_regions, aes(x = snp_in_tdp, y = min_diff)) +
 
 #for now, splitting data in 2 bins around median
 
-median_value <- median(ad_chi2$min_diff, na.rm = TRUE)
-
-ad_chi2 <- snps_in_binding_regions %>%
-  filter(complete.cases(.)) %>%
-  mutate(min_diff_binned = ifelse(min_diff <= median_value, "Low", "High"))
 
 
 ad_chi2 <- snps_in_binding_regions %>%
   dplyr::filter(complete.cases(.)) %>%
-  dplyr::mutate(min_diff_binned = ifelse(min_diff <= median(min_diff, na.rm = TRUE), "Low", "High"))
+  dplyr::mutate(min_diff_binned = ifelse(min_diff <= median(min_diff, na.rm = TRUE), "More Disruptive", "Less Disruptive"))
   
   
   contingency_table <- table(ad_chi2$snp_in_tdp, ad_chi2$min_diff_binned)
