@@ -21,7 +21,7 @@ als_gwas_gr |> view() #1000 - 32.6% snps in binding regions
 #als snps found more often in binding regions
 
 
-# see if i can do a stat test for this  -----------------------------------
+# stat test   -----------------------------------
 
 # AD
 ad_chi2 <- snps_in_binding_regions %>%
