@@ -38,12 +38,18 @@ ad_gwas1_df |>
 
 # try use ucsc to get more information ---------------------------------
 
-session <- browserSession("UCSC")
-genome(session) <- "hg38"
+ad_gwas_removed_context |> janitor::clean_names() |> 
+  filter(snps %in% zero_min_diff$snps) |> 
+  distinct(snps, .keep_all = TRUE) |> 
+  distinct(mapped_gene) |> 
+  pull()
+  
+#most are intron variants but not all 
+  
+# 108 different genes 
 
 
+# are any of the snps in regulatory regions -------------------------------
 
-query <- ucscTableQuery(session, 
-                        track = "dbSNP 155",
-                        table = "dbSNP 155",
-                        names = zero_min_diff$snps)
+view(zero_min_diff)
+
