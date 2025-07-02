@@ -172,10 +172,23 @@ seqlevels(check_gr) <- uscs_format
 
 
 check_seq <- as.data.frame(check_gr) |> 
-  select(snps, seqnames, start, end , strand, variant_sequence, mapped_gene)
+  select(snps, seqnames, start, end , strand, variant_sequence, mapped_gene, alleles)
 
 
-
+check_alleles <- check_seq |> 
+  mutate( allele_list = strsplit(alleles, "/"),
+          non_risk = map2_chr(                    # Extract the non-risk allele(s)
+            allele_list,
+            Risk_Allele,
+            ~ paste(setdiff(.x, .y), collapse ="/") # Keep alleles that are NOT the risk allele
+          )) |> 
+  dplyr::select(-allele_list) |>             #removes temporary column
+  mutate (is_risk_allele = ifelse(
+    str_detect(alleles, fixed(Risk_Allele)),
+    TRUE,
+    FALSE
+  )) |> 
+  filter(is_risk_allele)
 
 
 # how many of the snps mapped to which gene   ------------------------------------------------
@@ -220,3 +233,50 @@ write.table(
   row.names = FALSE,
   quote = FALSE
 )  
+#not sure what this showed me tbf 
+
+
+
+# analysing ensembl vep ---------------------------------------------------
+
+vep_data_zero <- read_tsv("C:/Users/Kai/Desktop/tdp_snp_analysis/data/vep_data_zero.txt", comment = "##", show_col_types = FALSE)
+
+vep_data_zero |> 
+  filter(Consequence == "coding_sequence_variant") |> 
+  view()
+
+vep_data_zero |> 
+  filter(BIOTYPE == "protein_coding") |> 
+  view()
+
+
+
+# read in ad fastas to see if they r identical  ---------------------------
+
+ad_risk <- readDNAStringSet("C:/Users/Kai/Desktop/tdp_snp_analysis/fastas/ad_risk_test.fasta")
+ad_healthy <- readDNAStringSet("C:/Users/Kai/Desktop/tdp_snp_analysis/fastas/ad_healthy_seq_test.fasta")
+
+
+ad_risk_df <- data.frame(
+  name = names(ad_risk),
+  sequence = as.character(ad_risk),
+  stringsAsFactors = FALSE
+) |> rename (snps = name)
+
+ad_healthy_df <- data.frame(
+  name = names(ad_healthy),
+  sequence = as.character(ad_healthy),
+  stringsAsFactors = FALSE
+) |>  rename (snps = name)
+
+zero_ad_risk_df  <- ad_risk_df |> 
+  mutate(zero_min_diff = snps %in% zero_min_diff$snps) |>
+  filter(zero_min_diff == TRUE) |> 
+  distinct(snps, .keep_all = TRUE) 
+
+zero_ad_healthy_df <- ad_healthy_df |> 
+  mutate(zero_min_diff = snps %in% zero_min_diff$snps) |>
+  filter(zero_min_diff == TRUE) |> 
+  distinct(snps, .keep_all = TRUE) 
+
+identical(zero_ad_healthy_df, zero_ad_risk_df)  
