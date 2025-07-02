@@ -98,8 +98,125 @@ check_gr <- check |>
 
 
 
-
 reg_overlaps<- subsetByOverlaps(check_gr, reg_gr)
+
+view(reg_overlaps)
 
 #only rs145049847 in a regulatory region - not reason why so many are 0
 
+
+check_seq <- as.data.frame(check_gr) |> 
+  select(snps, seqnames, start, end , strand, variant_sequence, mapped_gene)
+
+
+reg_features <- reg_features |> 
+  rename(seqnames =  chr)
+
+check_seq |> 
+  inner_join(reg_features, by = "seqnames") |> 
+  filter(start <= chromosome_end,
+         end >= chromosome_start) |> 
+  view()
+# its a promoter 
+
+# joining w deepclip data to look at sequences ----------------------------
+
+check <- check |> 
+  left_join(ad_gwas1_df, by = "snps") |> 
+  distinct(snps, .keep_all = TRUE)  # shows sequences 
+
+
+
+seqlevels(check_gr) <- sub("^chr", "", seqlevels(check_gr))
+
+# Connect to Ensembl
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+# Get genes overlapping  GRanges
+genes <- getBM(
+  attributes = c("chromosome_name", "start_position", "end_position", "strand"),
+  filters = c("chromosomal_region"),
+  values = paste0(seqnames(check_gr), ":", start(check_gr), "-", end(check_gr)),
+  mart = ensembl
+)
+
+# Convert numeric strands (1/-1) to character
+genes$strand <- ifelse(genes$strand == 1, "+",
+                       ifelse(genes$strand == -1, "-", "*"))
+
+# Convert to GRanges and assign strands
+check_gr_strand <- makeGRangesFromDataFrame(
+  genes,
+  seqnames.field = "chromosome_name",  
+  start.field = "start_position",     
+  end.field = "end_position",        
+  strand.field = "strand",            
+  keep.extra.columns = TRUE           
+)
+hits <- findOverlaps(check_gr, check_gr_strand)
+strand(check_gr)[queryHits(hits)] <- strand(check_gr_strand)[subjectHits(hits)]
+
+# Convert chromosome names to UCSC format
+uscs_format <- ifelse(
+  seqlevels(check_gr) == "MT",  # Handle mitochondrial case
+  "chrM",
+  paste0("chr", seqlevels(check_gr))
+)
+
+# Apply new names
+seqlevels(check_gr) <- uscs_format
+
+#not all on same strand so thats not it - see if can see if sequences similar 
+
+
+
+
+check_seq <- as.data.frame(check_gr) |> 
+  select(snps, seqnames, start, end , strand, variant_sequence, mapped_gene)
+
+
+
+
+
+# how many of the snps mapped to which gene   ------------------------------------------------
+
+check_seq |> 
+  group_by(mapped_gene) |> 
+  summarise (n_snps = n_distinct(snps)) |> 
+  view()
+# 1 or 2 snps mapped to each gene - nothing special 
+
+
+blast <- check_seq |> 
+  select(snps, variant_sequence) 
+
+
+# blast fasta  -----------------------------------------
+blast_data <- blast %>%
+  mutate(fasta = paste0(">", snps, "\n", variant_sequence)) %>%
+  pull(fasta)
+
+writeLines(blast_data, "blast.fasta")
+
+
+blast_results <- blast_seq(query = "blast.fasta", db = "nt")
+
+
+
+#according to blast, all the snps are in highly conserved regions - may be why they outputted 0
+
+
+# for ucsc ----------------------------------------------------------------
+
+ucsc_bed <- check_seq |> 
+  select(seqnames, start, end, snps) |> 
+  mutate(start = start - 1) 
+# Write to BED file
+write.table(
+  ucsc_bed,
+  file = "zero_snps.bed",
+  sep = "\t",
+  col.names = FALSE,
+  row.names = FALSE,
+  quote = FALSE
+)  
