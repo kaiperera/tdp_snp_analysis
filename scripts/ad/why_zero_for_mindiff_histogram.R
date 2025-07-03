@@ -175,20 +175,7 @@ check_seq <- as.data.frame(check_gr) |>
   select(snps, seqnames, start, end , strand, variant_sequence, mapped_gene, alleles)
 
 
-check_alleles <- check_seq |> 
-  mutate( allele_list = strsplit(alleles, "/"),
-          non_risk = map2_chr(                    # Extract the non-risk allele(s)
-            allele_list,
-            Risk_Allele,
-            ~ paste(setdiff(.x, .y), collapse ="/") # Keep alleles that are NOT the risk allele
-          )) |> 
-  dplyr::select(-allele_list) |>             #removes temporary column
-  mutate (is_risk_allele = ifelse(
-    str_detect(alleles, fixed(Risk_Allele)),
-    TRUE,
-    FALSE
-  )) |> 
-  filter(is_risk_allele)
+
 
 
 # how many of the snps mapped to which gene   ------------------------------------------------
@@ -279,4 +266,54 @@ zero_ad_healthy_df <- ad_healthy_df |>
   filter(zero_min_diff == TRUE) |> 
   distinct(snps, .keep_all = TRUE) 
 
+
+
 identical(zero_ad_healthy_df, zero_ad_risk_df)  
+
+
+
+# why are the 114 snps identical ------------------------------------------
+
+ad_snps_start_df <- as.data.frame(ad_snps_start)|>
+  janitor::clean_names() |>
+  relocate(snps)
+
+zero_ad_healthy_df |> 
+  left_join(check, by = "snps") |>
+  count(chr_id) #see how many are clustered around each chr present - 21 different chr - chr 1 = 10 
+
+
+zero_healthy_ss <- DNAStringSet(zero_ad_healthy_df$sequence)
+ad_healthy_ss <- DNAStringSet(ad_healthy_df$sequence)
+
+consensus_matrix <- consensusMatrix(DNAStringSet(ad_healthy_ss[zero_healthy_ss]))
+heatmap(consensus_matrix)
+
+
+
+# 1. First determine what type of indices you have
+class(zero_healthy_ss)  # Should ideally be "numeric" or "integer"
+
+# 2. Convert to numeric if needed (if they're stored as characters/factors)
+zero_healthy_ss <- as.numeric(as.character(zero_healthy_ss))
+ad_healthy_ss <- as.numeric(as.character(ad_healthy_ss))
+
+# 3. Remove any NA values created during conversion
+zero_healthy_ss <- zero_healthy_ss[!is.na(zero_healthy_ss)]
+ad_healthy_ss <- ad_healthy_ss[!is.na(ad_healthy_ss)]
+
+# 4. Verify they're within valid range
+valid_indices <- zero_healthy_ss[zero_healthy_ss %in% seq_along(ad_healthy)]
+if(length(valid_indices) != length(zero_healthy_ss)) {
+  message("Removed ", length(zero_healthy_ss) - length(valid_indices), 
+          " invalid indices")
+}
+
+# 5. Now safely subset
+if(length(valid_indices) > 0) {
+  dna_subset <- DNAStringSet(ad_healthy[valid_indices])
+  consensus_matrix <- consensusMatrix(dna_subset)
+  print(head(consensus_matrix))
+} else {
+  message("No valid indices remaining - check your index generation")
+}
