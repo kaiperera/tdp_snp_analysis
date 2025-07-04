@@ -13,7 +13,7 @@ data_for_histogram |>
 
 zero_min_diff <- data_for_histogram |> 
   filter(min_diff == 0) |> 
-  count(snps, sort = TRUE)   # Adds a column `n` with frequency - each occurs 75 times due to 75 nt flank per snp
+  count(snps, sort = TRUE)   # Adds a column `n` with frequency - each occurs 76 times due to 76 nt flank per snp
    
 
 
@@ -286,9 +286,6 @@ zero_ad_healthy_df |>
 zero_healthy_ss <- DNAStringSet(zero_ad_healthy_df$sequence)
 ad_healthy_ss <- DNAStringSet(ad_healthy_df$sequence)
 
-consensus_matrix <- consensusMatrix(DNAStringSet(ad_healthy_ss[zero_healthy_ss]))
-heatmap(consensus_matrix)
-
 
 
 # 1. First determine what type of indices you have
@@ -302,18 +299,62 @@ ad_healthy_ss <- as.numeric(as.character(ad_healthy_ss))
 zero_healthy_ss <- zero_healthy_ss[!is.na(zero_healthy_ss)]
 ad_healthy_ss <- ad_healthy_ss[!is.na(ad_healthy_ss)]
 
-# 4. Verify they're within valid range
-valid_indices <- zero_healthy_ss[zero_healthy_ss %in% seq_along(ad_healthy)]
-if(length(valid_indices) != length(zero_healthy_ss)) {
-  message("Removed ", length(zero_healthy_ss) - length(valid_indices), 
-          " invalid indices")
-}
 
-# 5. Now safely subset
-if(length(valid_indices) > 0) {
-  dna_subset <- DNAStringSet(ad_healthy[valid_indices])
-  consensus_matrix <- consensusMatrix(dna_subset)
-  print(head(consensus_matrix))
-} else {
-  message("No valid indices remaining - check your index generation")
+
+#forget the heatmpa, try to figure out if reference and alternate alleles are different than in og data
+#will need to use ad_snp_annotated_strand_df
+zero_healthy_alleles <- zero_ad_healthy_df |>  
+  left_join(ad_snp_annotated_strand_df, by = "snps") |> 
+  distinct(snps, .keep_all = TRUE) |> 
+  mutate(identical_allele = ifelse(risk_allele == non_risk, TRUE, FALSE))
+
+zero_risk_alleles <- zero_ad_risk_df |>  
+  left_join(ad_snp_annotated_strand_df, by = "snps") |> 
+  distinct(snps, .keep_all = TRUE) |> 
+  mutate(identical_allele = ifelse(risk_allele == non_risk, TRUE, FALSE))
+
+identical_snps <- zero_healthy_alleles |>
+  filter(identical_allele == TRUE)
+
+
+table(identical_snps$identical_allele)
+
+
+# Assuming 100bp flanking sequences (SNP at position 76)
+check_allele_substitution <- function(healthy_df, risk_df) {
+  healthy_df %>%
+    mutate(
+      # Extract the central base (assuming 100bp flanking, position 76)
+      healthy_allele = str_sub(non_risk, 76, 76),  
+      risk_allele = str_sub(risk_df$risk_allele[match(snps, risk_df$snps)], 76, 76),
+      problem = ifelse(healthy_allele == risk_allele, 
+                       "Failed substitution", 
+                       "Correct")
+    ) %>%
+    filter(problem == "Failed substitution") %>%
+    select(snps, non_risk_allele = healthy_allele, risk_allele, problem)
 }
+# Run the check
+problematic_snps <- check_allele_substitution(zero_healthy_alleles, zero_risk_alleles)
+print(problematic_snps)
+
+
+# Check if sequences exist and have expected length
+zero_healthy_alleles %>%
+  mutate(
+    seq_length = nchar(non_risk),  # Replace 'non_risk' with your sequence column name
+    has_sequence = (seq_length > 0)
+  ) %>%
+  count(has_sequence)
+
+
+#bash confirms fasta files fine
+
+
+ad_snps_start_df |> 
+  inner_join(zero_min_diff, by = "snps") |> 
+  distinct(snps, .keep_all = TRUE) |> 
+  view()
+
+
+
