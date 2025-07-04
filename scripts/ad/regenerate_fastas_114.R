@@ -113,25 +113,49 @@ zero_snp_annotated_strand <- zero_snp_annotated_strand |>
 
 
 # healthy fasta -----------------------------------------------------------
-
+#need to get minor coding allele
 zero_seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38, zero_snp_annotated_strand)
 
 zero_snp_annotated_strand$flank_sequence <- as.character(zero_seq_flank)
 
 zero_snp_annotated_strand_df <- as.data.frame(zero_snp_annotated_strand)
 
+#variation allele has commas - multi
+zero_snp_annotated_strand_df |> select(snps, variation_allele) |> filter(str_detect(variation_allele, ",")) |> view()
+
+#going to separate rows so i can use all of them, could also jst use first allele if this doesnt work
+
+
+zero_healthy_flank <- zero_snp_annotated_strand_df |> 
+  separate_rows(variation_allele, sep = ",") |> 
+  mutate(
+    minor_allele = ifelse(
+      strand == "+",
+      variation_allele,
+      as.character(reverseComplement(DNAStringSet(variation_allele)))
+    )
+  ) |> 
+  mutate(
+    healthy_flank = paste0(substr(zero_seq_flank, start = 1, stop = 37), minor_allele,
+                        substr(zero_seq_flank, start = 39, stop = 75))
+  )
+
+
 colnames(zero_snp_annotated_strand_df)
 zero_snp_annotated_strand_df |> 
   select(snps, flank_sequence) |> 
   view()
 
-zero_healthy_DSS <- DNAStringSet(zero_snp_annotated_strand$flank_sequence)
-names(zero_healthy_DSS) <- zero_snp_annotated_strand$snps
+zero_healthy_DSS <- DNAStringSet(zero_healthy_flank$flank_sequence)
+names(zero_healthy_DSS) <- zero_healthy_flank$snps
 
 writeXStringSet(zero_healthy_DSS, filepath = "zero_healthy_seq_test.fasta")
 
 
-
+zero_healthy_flank |> select(snps,strand, ancestral_allele, variation_allele, minor_allele) |> view()
+zero_healthy_flank |> filter(ancestral_allele == minor_allele) |> view()
+#6 cases where minor allele = ancestral as on -ve strand 
+#according to the tables the fastas shoudl be fine 
 
 # risk sequence -----------------------------------------------------------
 
@@ -158,3 +182,7 @@ zero_flank_risk_DSS <- DNAStringSet(zero_flank_risk_seq$risk_flank)
 names(zero_flank_risk_DSS) <- zero_flank_risk_seq$snps
 
 writeXStringSet(zero_flank_risk_DSS, filepath = "zero_risk_seq.fasta")
+
+
+
+#still identical
