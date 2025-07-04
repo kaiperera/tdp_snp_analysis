@@ -34,7 +34,7 @@ ad_snps_start<- fread("ad_gwas.tsv", sep = "\t")
 ```
 
 ```{r MAP SNPS TO ALLELES}
-valid_snp_id <- grep("^rs\\d+$", ad_snps_start$SNPS, value = TRUE)
+valid_snp_id <- grep("^rs\\d+$", ad_snps_start$SNPS, value = TRUE) 
 snp_info <- snpsById(SNPlocs.Hsapiens.dbSNP155.GRCh38, valid_snp_id, ifnotfound="drop") 
 snp_alleles <- as.data.frame (snp_info)
 snp_alleles_unique <- unique(snp_alleles, by = "RefSNP_id")
@@ -244,7 +244,7 @@ writeXStringSet(ad_healthy_DSS, filepath = "ad_healthy_seq_test.fasta")
 
 ```{r RISK FLANK SEQUENCE FASTA}
 ad_flank_risk_seq <- ad_snp_annotated_strand_df |> 
-  mutate(
+  dplyr::mutate(
     risk_coding_allele = ifelse(
       strand == "+",
       risk_allele,
@@ -1143,4 +1143,5 @@ names(zero_flank_risk_DSS) <- zero_flank_risk_seq$snps
 
 writeXStringSet(zero_flank_risk_DSS, filepath = "zero_risk_seq.fasta")
 ```
+
 

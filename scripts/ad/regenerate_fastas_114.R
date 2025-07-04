@@ -1,8 +1,12 @@
 #114 snps risk allele = major allele
 library("rsnps")
-ad_snps_start_df <- as.data.frame(ad_snps_start)|>
+ad_snps_start_df <- as.data.frame(ad_snps_start)|>  #makes gwas a df, cleans name, makes the snp column the first one
   janitor::clean_names() |>
   relocate(snps)
+
+zero_min_diff <- data_for_histogram |> 
+  filter(min_diff == 0) |> 
+  count(snps, sort = TRUE) 
 
 zero_min_diff_snps <- ad_snps_start_df |> 
   inner_join(zero_min_diff, by = "snps") |> 
@@ -21,15 +25,15 @@ if(!file.exists("zero_snp_data.rds")) {
   saveRDS(zero_snp_df, "zero_snp_data.rds")  # Binary format (preserves structure)
 }
 
-zero_snp_data <- readRDS("C:/Users/Kai/Desktop/tdp_snp_analysis/zero_dbsnp_data.rds")
+zero_snp_data <- readRDS("C:/Users/Kai/Desktop/tdp_snp_analysis/data/zero_dbsnp_data.rds")
 
-zero_min_diff_alleles <- as.data.frame(zero_snp_data) |> 
+zero_snp_data <- as.data.frame(zero_snp_data) |> 
   rename(snps = query)
 
 
 # join allele info to ad_snp start x zero min diff (zero min diff snps)
 zero_min_diff_df <- zero_min_diff_snps |> 
-  left_join(zero_min_diff_alleles, by = "snps") 
+  left_join(zero_snp_data, by = "snps") 
 
 
 
@@ -116,7 +120,7 @@ zero_snp_annotated_strand <- zero_snp_annotated_strand |>
 #need to get minor coding allele
 zero_seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38, zero_snp_annotated_strand)
 
-zero_snp_annotated_strand$flank_sequence <- as.character(zero_seq_flank)
+zero_snp_annotated_strand$flank_sequence <- as.character(zero_seq_flank) #adds flank sequence column to dataframe
 
 zero_snp_annotated_strand_df <- as.data.frame(zero_snp_annotated_strand)
 
@@ -152,10 +156,6 @@ names(zero_healthy_DSS) <- zero_healthy_flank$snps
 writeXStringSet(zero_healthy_DSS, filepath = "zero_healthy_seq_test.fasta")
 
 
-zero_healthy_flank |> select(snps,strand, ancestral_allele, variation_allele, minor_allele) |> view()
-zero_healthy_flank |> filter(ancestral_allele == minor_allele) |> view()
-#6 cases where minor allele = ancestral as on -ve strand 
-#according to the tables the fastas shoudl be fine 
 
 # risk sequence -----------------------------------------------------------
 
@@ -186,3 +186,25 @@ writeXStringSet(zero_flank_risk_DSS, filepath = "zero_risk_seq.fasta")
 
 
 #still identical
+
+
+
+# why are they still identical --------------------------------------------
+
+
+zero_healthy_flank |> select(snps,strand, ancestral_allele, variation_allele, minor_allele) |> view()
+zero_healthy_flank |> filter(ancestral_allele == minor_allele) |> view()
+#6 cases where minor allele = ancestral as on -ve strand 
+#according to the tables the fastas should be fine 
+
+
+zero_flank_risk_seq |> select(snps,strand, ancestral_allele, variation_allele, risk_coding_allele) |> view()
+
+
+one <- c("TTTTTCAGATTGCATGTGGGAATTATATGTGATTTGGAAAAAGGAAAAAAAAAAGCCTAGTCTCATCCTCAGGTA")
+two <- c("TTTTTCAGATTGCATGTGGGAATTATATGTGATTTGGAAAAAGGAAAAAAAAAAGCCTAGTCTCATCCTCAGGTA")
+
+identical(one, two)
+
+
+#finish rubber ducking - risk and healhty tables when print show flank differently - healthy 
