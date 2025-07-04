@@ -21,7 +21,7 @@ if(!file.exists("zero_snp_data.rds")) {
   saveRDS(zero_snp_df, "zero_snp_data.rds")  # Binary format (preserves structure)
 }
 
-zero_snp_data <- readRDS("C:/Users/Kai/Desktop/tdp_snp_analysis/zero_snp_data.rds")
+zero_snp_data <- readRDS("C:/Users/Kai/Desktop/tdp_snp_analysis/zero_dbsnp_data.rds")
 
 zero_min_diff_alleles <- as.data.frame(zero_snp_data) |> 
   rename(snps = query)
@@ -106,4 +106,55 @@ annotated_sequence <- getSeq(BSgenome.Hsapiens.UCSC.hg38, zero_snp_annotated_str
 
 # resize ------------------------------------------------------------------
 
+zero_snp_annotated_strand <- zero_snp_annotated_strand |> 
+  resize (width = width(zero_snp_annotated_strand) + 74, fix = "center", ignore.strand = FALSE)
 
+
+
+
+# healthy fasta -----------------------------------------------------------
+
+zero_seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38, zero_snp_annotated_strand)
+
+zero_snp_annotated_strand$flank_sequence <- as.character(zero_seq_flank)
+
+zero_snp_annotated_strand_df <- as.data.frame(zero_snp_annotated_strand)
+
+colnames(zero_snp_annotated_strand_df)
+zero_snp_annotated_strand_df |> 
+  select(snps, flank_sequence) |> 
+  view()
+
+zero_healthy_DSS <- DNAStringSet(zero_snp_annotated_strand$flank_sequence)
+names(zero_healthy_DSS) <- zero_snp_annotated_strand$snps
+
+writeXStringSet(zero_healthy_DSS, filepath = "zero_healthy_seq_test.fasta")
+
+
+
+
+# risk sequence -----------------------------------------------------------
+
+zero_flank_risk_seq <- zero_snp_annotated_strand_df |> 
+  mutate(
+    risk_coding_allele = ifelse(
+      strand == "+",
+      ancestral_allele,
+      as.character(reverseComplement(DNAStringSet(ancestral_allele)))
+    )
+  ) |> 
+  mutate(
+    risk_flank = paste0(substr(zero_seq_flank, start = 1, stop = 37), risk_coding_allele,
+                        substr(zero_seq_flank, start = 39, stop = 75))
+  )
+
+colnames(zero_flank_risk_seq)
+zero_flank_risk_seq |> 
+  select(snps, risk_flank) |> 
+  view()
+zero_flank_risk_seq$risk_flank
+
+zero_flank_risk_DSS <- DNAStringSet(zero_flank_risk_seq$risk_flank)
+names(zero_flank_risk_DSS) <- zero_flank_risk_seq$snps
+
+writeXStringSet(zero_flank_risk_DSS, filepath = "zero_risk_seq.fasta")
