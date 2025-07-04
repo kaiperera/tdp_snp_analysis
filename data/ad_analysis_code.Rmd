@@ -994,3 +994,5 @@ ggplot(null_data, aes(x = x)) +
   theme_minimal()
 ```
 
+#Generate FASTAs for zero_min_diff snps
+the 114 snps with 0 min_diff had a the risk allele being the major allele rather than the minor allele
