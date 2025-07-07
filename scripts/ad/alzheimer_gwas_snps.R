@@ -436,9 +436,6 @@ writeXStringSet(ad_flank_risk_DSS, filepath = "ad_risk_test.fasta")
 
 
 
-#ad_snp_annotated_clean <- ad_snp_annotated |> 
- # mutate( seqnames = str_trim(as.character(seqnames))) |> 
-  #distinct(seqnames, start, end, snps, .keep_all = TRUE)
 
   
 

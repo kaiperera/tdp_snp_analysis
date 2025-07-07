@@ -130,19 +130,21 @@ zero_snp_annotated_strand_df |> select(snps, variation_allele) |> filter(str_det
 #going to separate rows so i can use all of them, could also jst use first allele if this doesnt work
 
 
-zero_healthy_flank <- zero_snp_annotated_strand_df |> 
-  separate_rows(variation_allele, sep = ",") |> 
+zero_healthy_flank <- zero_snp_annotated_strand_df |>
+  separate_rows(variation_allele, sep = ",") |>
   mutate(
     minor_allele = ifelse(
       strand == "+",
       variation_allele,
       as.character(reverseComplement(DNAStringSet(variation_allele)))
+    ),
+    healthy_flank = paste0(
+      substr(flank_sequence, 1, 37),
+      minor_allele,
+      substr(flank_sequence, 39, 75)
     )
-  ) |> 
-  mutate(
-    healthy_flank = paste0(substr(zero_seq_flank, start = 1, stop = 37), minor_allele,
-                        substr(zero_seq_flank, start = 39, stop = 75))
   )
+
 
 
 colnames(zero_snp_annotated_strand_df)
@@ -168,9 +170,13 @@ zero_flank_risk_seq <- zero_snp_annotated_strand_df |>
     )
   ) |> 
   mutate(
-    risk_flank = paste0(substr(zero_seq_flank, start = 1, stop = 37), risk_coding_allele,
-                        substr(zero_seq_flank, start = 39, stop = 75))
+    risk_flank = paste0(
+      substr(as.character(zero_seq_flank), 1, 37),
+      risk_coding_allele,
+      substr(as.character(zero_seq_flank), 39, 75)
+    )
   )
+
 
 colnames(zero_flank_risk_seq)
 zero_flank_risk_seq |> 
@@ -208,3 +214,34 @@ identical(one, two)
 
 
 #finish rubber ducking - risk and healhty tables when print show flank differently - healthy 
+length(zero_seq_flank)
+nrow(zero_snp_annotated_strand_df)
+
+# See if they align row-wise
+head(as.character(zero_seq_flank), 10)
+zero_snp_annotated_strand_df$snps[1:10]
+
+# Add a row index before as.data.frame
+zero_snp_annotated_strand$index <- seq_along(zero_snp_annotated_strand)
+
+# Convert to data frame
+zero_snp_annotated_strand_df <- as.data.frame(zero_snp_annotated_strand)
+
+# Check alignment
+head(zero_snp_annotated_strand_df$index)
+
+
+snp_base <- substr(zero_snp_annotated_strand_df$flank_sequence, 38, 38)
+table(snp_base, zero_healthy_flank$minor_allele)
+table(snp_base, zero_flank_risk_seq$risk_coding_allele)
+
+#For all 114 SNPs, the base at position 38 in  extracted flanks (snp_base) exactly matches the risk_coding_allele.
+
+# Extract SNP base from zero_healthy_flank$flank_sequence
+snp_base_healthy <- substr(zero_healthy_flank$flank_sequence, 38, 38)
+
+# Now compare
+table(snp_base_healthy, zero_healthy_flank$minor_allele)
+
+any(zero_healthy_flank$healthy_flank != zero_healthy_flank$flank_sequence)
+#returns true meaning there are differences 
