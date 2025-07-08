@@ -80,20 +80,21 @@ for(i in 1:length(lines)){
   files <- files[files %in% sample_name]
   files <- factor(files, levels = sample_name) #factor levels follows exact order defined in sample_name - maintains consistency
   files <- sort(files) #Temporarily reorders elements alphabetically/numerically.
-  files <- paste0(dir_salmon, files, "/quant.sf")
+  files <- paste0(dir_salmon, files, "/quant.sf") 
+  files <- gsub("be2_curveDZ", "be2_curve/DZ", files)
   
   if(all(file.exists(files)) == FALSE) {
     print("Warning! Not all files available")
-  } #says all 24 files missing - come back to this 
+  } #missing / between be2_cirve and DZ etc.
   
-  tx2gn <- read.table(tx2gn_dir, header = T, sep = "\t")
+  tx2gn <- read.table(tx2gn_dir, header = F, sep = "\t")
   
-  colnames(tx2gn) = c("ensembl_gene_id", "ensembl_transcript_id")
-  tx2gn <- tx2gn[,c("ensembl_transcript_id", "ensembl_gene_id")]
+  colnames(tx2gn) = c("ensembl_transcript_id", "ensembl_gene_id")
+ 
   
   txi.tx <- tximport(files, 
-                     type="salmon", 
-                     tx2gene=tx2gn,
+                     type = "salmon", 
+                     tx2gene = tx2gn,
                      ignoreTxVersion = TRUE,
                      ignoreAfterBar = TRUE,
                      txOut = TRUE, dropInfReps = T)
@@ -120,7 +121,7 @@ for(i in 1:length(lines)){
   
   fpkm_matrix <- as.data.frame(fpkm(dds))
   
-  colnames(fpkm_matrix) <- colData$sample
+  colnames(fpkm_matrix) <- colData$sample_name
   fpkm_matrix$ensembl_transcript_id_version <- rownames(fpkm_matrix)
   fpkm_matrix$ensembl_transcript_id <- sub("\\..*", "", fpkm_matrix$ensembl_transcript_id_version)
   
@@ -128,8 +129,8 @@ for(i in 1:length(lines)){
   
   
   
-  samples_cond0 <- colData[colData$condition==0, ]$sample
-  samples_cond1 <- colData[colData$condition==1, ]$sample
+  samples_cond0 <- colData[colData$condition == "CTRL", ]$sample_name
+  samples_cond1 <- colData[colData$condition == "TDP43", ]$sample_name
   
   fpkm_matrix$sample0 <- rowMeans(fpkm_matrix[, samples_cond0])
   fpkm_matrix$sample1 <- rowMeans(fpkm_matrix[, samples_cond1])
@@ -141,15 +142,15 @@ for(i in 1:length(lines)){
   tx2gn$ensembl_transcript_id <- sub("\\..*", "", tx2gn$ensembl_transcript_id)
   
   
-  fpkm_matrix2 <- merge(tx2gn, fpkm_matrix2, by="ensembl_transcript_id", all.y=T)
+  fpkm_matrix2 <- merge(tx2gn, fpkm_matrix2, by="ensembl_transcript_id", all.y = T) #keeps all rows from second dataframe even if no matches 
   
   fpkm_matrix2 <- fpkm_matrix2 %>%
     group_by(ensembl_gene_id) %>%
     mutate(
-      max_rank = rank(-sample1, ties.method = "first"),
-      maxiso = max_rank == 1
+      max_rank = rank(-sample1, ties.method = "first"), #assigns rank based on isoform expression in sample1 (1 = highest expression)- identifies major isoform 
+      maxiso = max_rank == 1 #maxiso = TRUE = dominant isoform - highest expression levels 
     ) %>%
-    select(-max_rank) %>%
+    dplyr::select(-max_rank) %>%
     ungroup()
   
   maxiso <- fpkm_matrix2[fpkm_matrix2$maxiso==T,]$ensembl_transcript_id
