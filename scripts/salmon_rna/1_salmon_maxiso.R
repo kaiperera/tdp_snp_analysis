@@ -219,6 +219,7 @@ if(all(file.exists(files_shsy5y)) == FALSE) {
   print("Warning! Not all files available")
 } 
 
+#still having issue with files not ebing read - try and remember how fixed this previously 
 
 tx2gn <- read.table(tx2gn_dir, header = F, sep = "\t")
 
