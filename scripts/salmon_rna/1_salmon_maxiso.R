@@ -14,15 +14,14 @@ library(DESeq2)
 
 # INPUT
 
-dir_in <- "D:/Documenti/FlaminiaD/LABORATORIO FRATTA/PROJECTS/circUNC13A/bioinfo/input/salmon/"
+dir_in <- "C:/Users/Kai/Documents/salmon_tar_tdp"
 
-output_dir <- "D:/Documenti/FlaminiaD/LABORATORIO FRATTA/PROJECTS/circUNC13A/bioinfo/output/metacirc/alldatasets/deseq2/"
+output_dir <- "C:/Users/Kai/Documents/salmon_tdp_output"
 
-tx2gn_dir <- "D:/Documenti/FlaminiaD/LABORATORIO FRATTA/Roba Utile/ens108_tx2gn.txt"
+tx2gn_dir <- "C:/Users/Kai/Desktop/tdp_snp_analysis/data_salmon/gencode.v40.tx2gene.csv"
 
 blocked <- F
 
-contaminants_dir <- "D:/Documenti/FlaminiaD/LABORATORIO FRATTA/PROJECTS/RBP_prediction/input/contaminants.txt"
 
 sample0 <- "CTRL"
 sample1 <- "TDP43"
@@ -44,7 +43,6 @@ Dirs <- function(path) {
 
 # CODE
 
-contaminants <- read.table(contaminants_dir)[[1]]
 
 
 lines <- list.files(dir_in)
@@ -56,8 +54,8 @@ for(i in 1:length(lines)){
   
   ## 1. Set directories and parameters
   
-  dir_salmon <- paste0(dir_in, line, "/")
-  dir_out <- paste0(output_dir, line, "/")
+  dir_salmon <- file.path(dir_in, line)
+  dir_out <- file.path(output_dir, line)
   Dirs(dir_out)
   
   
@@ -65,27 +63,31 @@ for(i in 1:length(lines)){
   
   ## 2. Read metadata and select samples
   
-  colData <- read.table(paste0(dir_salmon, "metadata.txt"), header = T, sep="\t")
+  colData <- read.csv(file.path(dir_salmon, "metadata.csv"), header = T)
+  
+
   colData$condition <- as.factor(colData$condition)
   
-  samples <- colData$sample
+  sample_name <- colData$sample_name
   
   
   
+ 
   
   ## 3. Import Salmon tx counts and goncert to gn counts
   
   files <- list.files(dir_salmon)
-  files <- files[files %in% samples]
-  files <- factor(files, levels=samples)
-  files <- sort(files)
+  files <- files[files %in% sample_name]
+  files <- factor(files, levels = sample_name) #factor levels follows exact order defined in sample_name - maintains consistency
+  files <- sort(files) #Temporarily reorders elements alphabetically/numerically.
   files <- paste0(dir_salmon, files, "/quant.sf")
   
   if(all(file.exists(files)) == FALSE) {
     print("Warning! Not all files available")
-  }
+  } #says all 24 files missing - come back to this 
   
   tx2gn <- read.table(tx2gn_dir, header = T, sep = "\t")
+  
   colnames(tx2gn) = c("ensembl_gene_id", "ensembl_transcript_id")
   tx2gn <- tx2gn[,c("ensembl_transcript_id", "ensembl_gene_id")]
   
@@ -165,8 +167,14 @@ for(i in 1:length(lines)){
 
 
 salmon_samples <- read.csv("C:/Users/Kai/Desktop/tdp_snp_analysis/data_salmon/sample_sheet_dz_curves.csv")
-salmon_samples <- as.data.frame(salmon_samples)
-salmon_samples <- salmon_samples |>  
+salmon_samples <- as.data.frame(salmon_samples) #changed to metadata.csv in dir_salmon/be2
+
+
+colData <- colData |>  
   mutate(
-    group = ifelse(row_number() <= 3, "control", "sample")
-  ) 
+    group = ifelse(sample_name == c("DZ_curves_0_1", "DZ_curves_0_2","DZ_curves_0_3" ), "CTRL", "TDP43")
+  ) |> 
+  rename(condition = group)
+
+
+missing_files <- files[!file.exists(files)]
