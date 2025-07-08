@@ -76,6 +76,7 @@ for(i in 1:length(lines)){
   
   ## 3. Import Salmon tx counts and goncert to gn counts
   
+  #good for be2
   files <- list.files(dir_salmon)
   files <- files[files %in% sample_name]
   files <- factor(files, levels = sample_name) #factor levels follows exact order defined in sample_name - maintains consistency
@@ -179,3 +180,5 @@ colData <- colData |>
 
 
 missing_files <- files[!file.exists(files)]
+
+#split file name loop bit into 2 - 1 for each cell line
