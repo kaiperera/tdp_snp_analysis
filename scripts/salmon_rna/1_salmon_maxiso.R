@@ -317,4 +317,28 @@ first_path <- files_shsy5y[1]
 print(first_path)
 
 
+# Fix 1: Match the exact pattern in your paths
+files_shsy5y <- gsub("shsy5y_curvedoxconc_", "shsy5y_curve/doxconc_", files_shsy5y)
+
+# Fix 2: Verify the base directory exists
+if (!dir.exists(dirname(dirname(files_shsy5y[1])))) {
+  stop("Base directory doesn't exist!")
+}
+
+# Fix 3: Check for any existing quant.sf files
+existing_files <- files_shsy5y[file.exists(files_shsy5y)]
+if (length(existing_files) == 0) {
+  # Alternative path construction
+  files_shsy5y <- file.path(
+    "C:/Users/Kai/Documents/salmon_tar_tdp",
+    "shsy5y_curve",
+    paste0(gsub(".*doxconc_", "", dirname(files_shsy5y)), 
+           "quant.sf"
+    ))}
+
+
+
+# Check what files actually exist in your target directory
+list.files("C:/Users/Kai/Documents/salmon_tar_tdp/shsy5y_curve", recursive = TRUE)
+
 
