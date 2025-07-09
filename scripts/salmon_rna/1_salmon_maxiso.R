@@ -57,8 +57,8 @@ lines <- list.files(dir_in)
 
 ## 1. Set directories and parameters
 this_line = lines[1]
-dir_salmon <- file.path(dir_in, line)
-dir_out <- file.path(output_dir, line)
+dir_salmon <- file.path(dir_in, this_line)
+dir_out <- file.path(output_dir, this_line)
 Dirs(dir_out)
 
 
@@ -199,7 +199,7 @@ sample_name <- colData$sample_name
 
 
 
-#shsy5y
+#shsy5y- not  sure if this bit is needed anymore 
 files_shsy5y <- list.files(dir_salmon)
 files_shsy5y <- ifelse(
   grepl("DOX", files_shsy5y),       # If sample is DOX-treated
@@ -213,6 +213,24 @@ files_shsy5y <- factor(files_shsy5y, levels = sample_name)
 files_shsy5y <- sort(files_shsy5y) 
 files_shsy5y <- paste0(dir_salmon, files_shsy5y, "/quant.sf")
 files_shsy5y <- gsub("shsy5y_curvedoxconc_", "shsy5y_curve/doxconc_", files_shsy5y)
+
+
+
+# Step 1: Properly map sample_name to folder names
+folder_names <- sample_name |>
+  gsub("doxconc", "dox-conc", x = _) |>               # Add hyphen
+  gsub("_DOX_00", "_DOX_0.0", x = _) |>               # Fix decimals (00125 → 0.0125)
+  gsub("_DOX_0021_", "_DOX_0.021_", x = _) |>         # Fix 0.021
+  gsub("_DOX_0025_", "_DOX_0.025_", x = _) |>         # Fix 0.025
+  gsub("_DOX_0075_", "_DOX_0.075_", x = _)            # Fix 0.075
+
+# Step 2: Construct paths
+files_shsy5y <- file.path(dir_salmon, folder_names, "quant.sf")
+
+# Step 3: Verify
+print("Checking first few paths:")
+head(files_shsy5y)
+head(file.exists(files_shsy5y))
 
 
 if(all(file.exists(files_shsy5y)) == FALSE) {
