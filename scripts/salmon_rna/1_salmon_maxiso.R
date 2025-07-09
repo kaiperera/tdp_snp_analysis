@@ -9,6 +9,8 @@ library(dplyr)
 library(ggplot2)
 library(tximport)
 library(DESeq2)
+library(tidyverse)
+
 
 ################################################################################
 
@@ -359,4 +361,34 @@ if (length(existing_files) == 0) {
 # Check what files actually exist in your target directory
 list.files("C:/Users/Kai/Documents/salmon_tar_tdp/shsy5y_curve", recursive = TRUE)
 
+
+
+# grange ------------------------------------------------------------------
+
+early_late_1_ <- read_csv("data_salmon/early_late (1).csv")
+
+early_late_df <- as.data.frame(early_late_1_) |> 
+  separate(
+    junction,
+    into = c("chr", "pos"),
+    sep = ":",
+    convert = FALSE
+  ) |> 
+  separate(
+    pos,
+    into = c("pos_start", "pos_end"),
+    sep = "-",
+    convert = FALSE
+  )
+
+
+
+
+early_late_gr <- early_late_df |> 
+  makeGRangesFromDataFrame(
+    start.field = "pos_start",
+    end.field = "pos_end",
+    strand.field = "strand",
+    keep.extra.columns = TRUE
+  )
 
