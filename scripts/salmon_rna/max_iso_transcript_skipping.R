@@ -192,16 +192,53 @@ export(be2_max_iso_overlaps_KCNQ2_gr, "be2_max_iso_overlaps_KCNQ2.bed")
 
 # histogram total exons ---------------------------------------------------
 
-ggplot(total_exon, aes(x = transcript_name)) +
+ggplot(total_exon, aes(x = total_exons)) +
   geom_histogram(fill = "steelblue", colour = "black") +
+  labs(title = "Total Exon Count") +
   theme(axis.text.x = element_text(45, hjust = 1)) +
   theme_bw()
 
 
 
-#make grange object - gen name and new cate after sanity checking boht cell lines have same exons
+#make grange object - gen name and new cate after sanity checking both  cell lines have same exons
 
 
 # unique grange -----------------------------------------------------------
 
+#check which df i should be using for this 
+#see timeline for project and plan accordingly
 
+
+be2_max_iso_overlaps <- be2_max_iso_overlaps |> 
+  rename(chr = seqnames)
+
+shsy5y_max_iso_overlaps <- shsy5y_max_iso_overlaps |> 
+  rename(chr = seqnames)
+
+
+
+be2_max_iso_overlaps_gr <-  be2_max_iso_overlaps |> 
+  makeGRangesFromDataFrame(
+    start.field = "start",
+    end.field = "end",
+    strand.field = "strand" ,
+    keep.extra.columns = TRUE
+  )
+
+shsy5y_max_iso_overlaps_gr <- shsy5y_max_iso_overlaps |> 
+  makeGRangesFromDataFrame(
+    start.field = "start",
+    end.field = "end",
+    strand.field = "strand",
+    keep.extra.columns = TRUE
+  )
+
+findOverlaps(shsy5y_max_iso_overlaps_gr, be2_max_iso_overlaps_gr)
+subsetByOverlaps(exon_skip_gr_resize,
+                 be2_max_iso_overlaps_gr,
+                 ignore.strand = FALSE) |> view() #38
+
+
+subsetByOverlaps(exon_skip_gr_resize,
+                 shsy5y_max_iso_overlaps_gr,
+                 ignore.strand = FALSE) |> view() #35
