@@ -111,13 +111,20 @@ be2_true |>
 
 
 #trying to see if the 2 cell lines generated the same max isoforms - if so are they same transcript and which one to use 
+check <- shsy5y_maxiso_mean |> 
+  rename(transcript_id = ensembl_transcript_id)
+
+
+
 
 shsy5y_true <- shsy5y_maxiso_mean |> 
-  filter(maxiso == "TRUE") 
+  filter(maxiso == "TRUE") |> 
+  rename(transcript_id = ensembl_transcript_id)
 
 
 be2_true <- be2_maxiso_mean |> 
-  filter( maxiso == "TRUE") 
+  filter( maxiso == "TRUE") |> 
+  rename(transcript_id = ensembl_transcript_id)
 
 be2_true |> 
   inner_join(shsy5y_true, by = "ensembl_gene_id", suffix = c("_be2", "_shsy5y")) |> 
@@ -137,9 +144,44 @@ mcols(overlaps2)$transcript_id <- sub("\\..*", "", mcols(overlaps2)$transcript_i
 
 #each gene has 1 max iso 
 
-#filtering 
+#filtering to just see the max isoforms one 
 overlaps2_tbl <- as.tibble(overlaps2)
 
+shsy5y_max_iso_overlaps <- overlaps2_tbl |> 
+  left_join(shsy5y_true, by = "transcript_id") |> 
+  filter(maxiso == TRUE)
 
-shsy5y_true <- shsy5y_true |> 
-  rename(transcript_id = ensembl_transcript_id)
+
+be2_max_iso_overlaps <- overlaps2_tbl |> 
+  left_join(be2_true, by = "transcript_id") |> 
+  filter(maxiso == TRUE)
+
+
+#keep seqnames, strnad, start end gene id 
+shsy5y_max_iso_overlaps <- shsy5y_max_iso_overlaps |> 
+  select(seqnames, start, end, strand, gene_id, transcript_name, transcript_id)
+
+be2_max_iso_overlaps <- be2_max_iso_overlaps |> 
+  select(seqnames, start, end, strand, gene_id, transcript_name, transcript_id)
+  
+#get number of exons according to transcript id that are being skipped 
+total_exon <- be2_max_iso_overlaps |> 
+  group_by(transcript_id, transcript_name) |> 
+  summarise(
+    total_exons = n(),
+    .groups = "drop"
+  ) # count number of exons by transcript
+
+
+
+#convert to grange - write out to desktop using rtracklayer export 
+be2_max_iso_overlaps_KCNQ2 <- be2_max_iso_overlaps |> filter(grepl("KCNQ2", transcript_name))
+
+be2_max_iso_overlaps_KCNQ2_gr <- be2_max_iso_overlaps_KCNQ2 |> 
+  makeGRangesFromDataFrame(
+    start.field = "start",
+    end.field = "end",
+    strand.field = "strand",
+    keep.extra.columns = TRUE
+  )
+export(be2_max_iso_overlaps_KCNQ2_gr, "be2_max_iso_overlaps_KCNQ2.bed")
