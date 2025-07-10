@@ -168,12 +168,6 @@ be2_max_iso_overlaps <- be2_max_iso_overlaps |>
   select(seqnames, start, end, strand, gene_id, transcript_name, transcript_id)
   
 #get number of exons according to transcript id that are being skipped 
-total_exon <- be2_max_iso_overlaps |> 
-  group_by(transcript_id, transcript_name) |> 
-  summarise(
-    total_exons = n(),
-    .groups = "drop"
-  ) # count number of exons by transcript
 
 
 
@@ -234,6 +228,7 @@ shsy5y_max_iso_overlaps_gr <- shsy5y_max_iso_overlaps |>
   )
 
 findOverlaps(shsy5y_max_iso_overlaps_gr, be2_max_iso_overlaps_gr)
+#completely different overlaps 
 subsetByOverlaps(exon_skip_gr_resize,
                  be2_max_iso_overlaps_gr,
                  ignore.strand = FALSE) |> view() #38
@@ -242,3 +237,61 @@ subsetByOverlaps(exon_skip_gr_resize,
 subsetByOverlaps(exon_skip_gr_resize,
                  shsy5y_max_iso_overlaps_gr,
                  ignore.strand = FALSE) |> view() #35
+
+
+
+#these 2 share some overlaps compared to the other 2
+subsetByOverlaps(shsy5y_max_iso_overlaps_gr,
+                 exon_skip_gr_resize,
+                 ignore.strand = FALSE) |> view() 
+
+subsetByOverlaps(be2_max_iso_overlaps_gr,
+                 exon_skip_gr_resize,
+                 ignore.strand = FALSE) |> view()
+
+
+identical(granges(shsy5y_max_iso_overlaps_gr), granges(be2_max_iso_overlaps_gr))
+my_ov = findOverlaps(shsy5y_max_iso_overlaps_gr, be2_max_iso_overlaps_gr,  type = "equal") 
+
+
+
+# table -------------------------------------------------------------------
+
+be2_max_iso_overlaps |> 
+  left_join(shsy5y_max_iso_overlaps, by = "gene_id", suffix = c("_be2", "_shs") ) |> 
+  select(gene_id, transcript_id_be2, transcript_id_shs, transcript_name_be2, transcript_name_shs) |> 
+  filter(transcript_id_be2 != transcript_id_shs) |> view()
+
+sh_tmp = shsy5y_max_iso_overlaps_gr |> as.data.frame() |> 
+  mutate(exon = glue::glue('{seqnames}:{start}-{end}'))  |>  
+  distinct(gene_id,transcript_name,transcript_id,exon,strand)
+
+be_tmp = be2_max_iso_overlaps_gr |> as.data.frame() |> 
+  mutate(exon = glue::glue('{seqnames}:{start}-{end}')) |> 
+  distinct(gene_id,transcript_name,transcript_id,exon,strand)
+
+unique_list <- sh_tmp |> 
+  rbind(be_tmp) |> unique()
+
+
+# filter for unique id - only 1 exon not multiple -------------------------
+
+unique_list |> 
+  distinct(exon) |> view() #only got rid of 1 row 
+
+ skipped_exon_csv <- unique_list |> 
+   group_by(gene_id) |> 
+   mutate(
+     distinct_exons = n_distinct(exon)) |> 
+   filter(distinct_exons == 1) 
+   
+   
+ 
+
+ 
+ write.csv(skipped_exon_csv, "skipped_exon.csv", row.names = FALSE)   
+   
+   
+  
+ 
+ 
