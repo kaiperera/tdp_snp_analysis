@@ -38,4 +38,9 @@ go into detail as to what happens in each file
 
 ```ad_further_splice``` = same as previous but with different splice sites + plot for no data   
 
-```ad_analysis_code``` = markdown file consolidating all AD scripts 
+```ad_analysis_code``` = markdown file consolidating all AD scripts  
+
+
+## SALMON R FILES
+``` 1_salmon_maxiso``` = determines what the maximum isoform is from both cell line experiments  
+```max_iso_transcript_skipping``` = 
