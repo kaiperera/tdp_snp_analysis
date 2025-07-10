@@ -73,9 +73,12 @@ missing_genes <- setdiff(exon_genes, overlap_genes)
 
 exon_skip_gr[mcols(exon_skip_gr)$gene %in% missing_genes] |> view()
 
+exon_skip_gr_resize <- exon_skip_gr-2
+
+export(exon_skip_gr_resize, "exon_skip_gr_resize.bed")
 
 overlaps2 <- subsetByOverlaps(overlaps,
-                              exon_skip_gr,
+                              exon_skip_gr_resize,
                               ignore.strand = FALSE)
 
 
@@ -185,3 +188,20 @@ be2_max_iso_overlaps_KCNQ2_gr <- be2_max_iso_overlaps_KCNQ2 |>
     keep.extra.columns = TRUE
   )
 export(be2_max_iso_overlaps_KCNQ2_gr, "be2_max_iso_overlaps_KCNQ2.bed")
+
+
+# histogram total exons ---------------------------------------------------
+
+ggplot(total_exon, aes(x = transcript_name)) +
+  geom_histogram(fill = "steelblue", colour = "black") +
+  theme(axis.text.x = element_text(45, hjust = 1)) +
+  theme_bw()
+
+
+
+#make grange object - gen name and new cate after sanity checking boht cell lines have same exons
+
+
+# unique grange -----------------------------------------------------------
+
+
