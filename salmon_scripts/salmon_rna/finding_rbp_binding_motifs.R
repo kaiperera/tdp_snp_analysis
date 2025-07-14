@@ -116,7 +116,7 @@ find_motifs(upstream_fasta, tdp_43_motif)
 find_motifs(upstream_fasta, tdp_reverse)
 
 
-#downstream and upstream fastas identical 
+
 # find motifs downstream --------------------------------------------------
 
 downstream_fasta <- read_fasta("C:/Users/Kai/Desktop/tdp_snp_analysis/downstream_skipped.fasta")
