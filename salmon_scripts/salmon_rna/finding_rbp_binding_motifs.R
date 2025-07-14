@@ -143,7 +143,7 @@ writeXStringSet(merged_DSS, filepath = "merged.fasta")
 
 
 
-# finding motifs from 1 table ---------------------------------------------
+# finding motifs from 1 table  ---------------------------------------------
 
 merged_fasta <- read_fasta("C:/Users/Kai/Desktop/tdp_snp_analysis/merged.fasta")
 
