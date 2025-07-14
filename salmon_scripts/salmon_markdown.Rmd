@@ -1,0 +1,679 @@
+---
+title: "salmon_markdown"
+output: html_document
+date: "2025-07-14"
+---
+#Libraries
+```{r LOAD}
+library(dplyr)
+library(ggplot2)
+library(tximport)
+library(DESeq2)
+library(tidyverse)
+library(rtracklayer)
+library(GenomicRanges)
+library(plyranges)
+library(Biostrings)
+library(readr)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(tidysq)
+```
+
+# Salmon Maximum Isoform
+Finding the Maximum Isoform per gene in events where the exon is skipped 
+```{r INPUT}
+dir_in <- "C:/Users/Kai/Documents/salmon_tar_tdp"
+
+output_dir <- "C:/Users/Kai/Documents/salmon_tdp_output"
+
+tx2gn_dir <- "C:/Users/Kai/Desktop/tdp_snp_analysis/data_salmon/gencode.v40.tx2gene.csv"
+
+blocked <- F
+
+
+sample0 <- "CTRL"
+sample1 <- "TDP43"
+
+FC_threshold <- 0
+pv_threshold <- 0.05
+```
+
+```{r FUNCTIONS}
+Dirs <- function(path) {
+  if (!dir.exists(path)) {
+    dir.create(path, recursive = TRUE)
+  }
+}
+```
+
+```{r CODE FOR BE2 CELL LINE}
+lines <- list.files(dir_in)
+
+
+
+
+
+## 1. Set directories and parameters
+this_line = lines[1]
+dir_salmon <- file.path(dir_in, this_line)
+dir_out <- file.path(output_dir, this_line)
+Dirs(dir_out)
+
+
+
+
+## 2. Read metadata and select samples
+
+colData <- read.csv(file.path(dir_salmon, "metadata.csv"), header = T)
+
+
+colData$condition <- as.factor(colData$condition)
+
+sample_name <- colData$sample_name
+
+
+
+
+
+## 3. Import Salmon tx counts and goncert to gn counts
+
+files_be2 <- list.files(dir_salmon)
+files_be2 <- files_be2[files_be2 %in% sample_name]
+files_be2 <- factor(files_be2, levels = sample_name) #factor levels follows exact order defined in sample_name - maintains consistency
+files_be2 <- sort(files_be2) #Temporarily reorders elements alphabetically/numerically.
+files_be2 <- paste0(dir_salmon, files_be2, "/quant.sf") 
+files_be2 <- gsub("be2_curveDZ", "be2_curve/DZ", files_be2)
+
+
+if(all(file.exists(files_be2)) == FALSE) {
+  print("Warning! Not all files available")
+} 
+
+
+ tx2gn <- read.table(tx2gn_dir, header = F, sep = "\t")
+
+colnames(tx2gn) = c("ensembl_transcript_id", "ensembl_gene_id")
+
+
+txi.tx_be2 <- tximport(files_be2, 
+                   type = "salmon", 
+                   tx2gene = tx2gn,
+                   ignoreTxVersion = TRUE,
+                   ignoreAfterBar = TRUE,
+                   txOut = TRUE, dropInfReps = T)
+
+
+
+## 5. Run Deseq2 and extract results
+
+if(blocked==T){
+  colData$replicate <- as.factor(colData$replicate)
+  dds <- DESeqDataSetFromTximport(txi.tx_be2, 
+                                  colData = colData, 
+                                  design =~condition+replicate)
+}else{
+  dds <- DESeqDataSetFromTximport(txi.tx_be2, 
+                                  colData = colData, 
+                                  design =~condition)
+}
+
+dds <- DESeq(dds)
+
+
+
+
+
+fpkm_matrix <- as.data.frame(fpkm(dds))
+
+colnames(fpkm_matrix) <- colData$sample_name
+fpkm_matrix$ensembl_transcript_id_version <- rownames(fpkm_matrix)
+fpkm_matrix$ensembl_transcript_id <- sub("\\..*", "", fpkm_matrix$ensembl_transcript_id_version)
+
+write.table(fpkm_matrix, paste0(dir_out, "FPKM_table.txt"), col.names = T, row.names = F, sep= "\t", quote = F)
+
+
+
+samples_cond0 <- colData[colData$condition == "CTRL", ]$sample_name
+samples_cond1 <- colData[colData$condition == "TDP43", ]$sample_name
+
+fpkm_matrix$sample0 <- rowMeans(fpkm_matrix[, samples_cond0])
+fpkm_matrix$sample1 <- rowMeans(fpkm_matrix[, samples_cond1])
+fpkm_matrix2 <- fpkm_matrix[,c("ensembl_transcript_id", "sample0", "sample1")]
+
+
+
+tx2gn$ensembl_gene_id <- sub("\\..*", "", tx2gn$ensembl_gene_id)
+tx2gn$ensembl_transcript_id <- sub("\\..*", "", tx2gn$ensembl_transcript_id)
+
+
+fpkm_matrix2 <- merge(tx2gn, fpkm_matrix2, by="ensembl_transcript_id", all.y = T) #keeps all rows from second dataframe even if no matches 
+
+fpkm_matrix2 <- fpkm_matrix2 %>%
+  group_by(ensembl_gene_id) %>%
+  mutate(
+    max_rank = rank(-sample1, ties.method = "first"), #assigns rank based on isoform expression in sample1 (1 = highest expression)- identifies major isoform 
+    maxiso = max_rank == 1 #maxiso = TRUE = dominant isoform - highest expression levels 
+  ) %>%
+  dplyr::select(-max_rank) %>%
+  ungroup()
+
+maxiso <- fpkm_matrix2[fpkm_matrix2$maxiso==T,]$ensembl_transcript_id
+
+maxiso_df <- fpkm_matrix2[fpkm_matrix2$maxiso==T,c("ensembl_gene_id", "ensembl_transcript_id")]
+
+write.table(fpkm_matrix2, paste0(dir_out, "FPKM_mean.txt"), col.names = T, row.names = F, sep= "\t", quote = F)
+write.table(maxiso, paste0(dir_out, "maxiso.txt"), col.names = F, row.names = F, sep= "\t", quote = F)
+write.table(maxiso_df, paste0(dir_out, "maxiso_df.txt"), col.names = T, row.names = F, sep= "\t", quote = F)
+
+```
+
+```{r CODE FOR SHSY5Y CELL LINE}
+this_line = lines[2]
+dir_salmon <- file.path(dir_in, this_line)
+dir_out <- file.path(output_dir, this_line)
+Dirs(dir_out)
+
+
+
+
+## 2. Read metadata and select samples
+
+colData <- read.csv(file.path(dir_salmon, "metadata.csv"), header = T)
+
+
+colData$condition <- as.factor(colData$condition)
+
+sample_name <- colData$sample_name
+
+
+
+
+
+## 3. Import Salmon tx counts and goncert to gn counts
+
+
+
+#shsy5y- not  sure if this bit is needed anymore 
+files_shsy5y <- list.files(dir_salmon)
+files_shsy5y <- ifelse(
+  grepl("DOX", files_shsy5y),       # If sample is DOX-treated
+  gsub("_0\\.", "_0", files_shsy5y), # Remove decimal (e.g., 0.0125 → 00125)
+  files_shsy5y                       # Leave NT samples unchanged
+)
+files_shsy5y <- gsub("-", "", files_shsy5y)
+
+files_shsy5y <- files_shsy5y[files_shsy5y %in% sample_name]
+files_shsy5y <- factor(files_shsy5y, levels = sample_name)
+files_shsy5y <- sort(files_shsy5y) 
+files_shsy5y <- paste0(dir_salmon, files_shsy5y, "/quant.sf")
+files_shsy5y <- gsub("shsy5y_curvedoxconc_", "shsy5y_curve/doxconc_", files_shsy5y)
+
+
+
+# Step 1: Properly map sample_name to folder names
+folder_names <- sample_name |>
+  gsub("doxconc", "dox-conc", x = _) |>               # Add hyphen
+  gsub("_DOX_00", "_DOX_0.0", x = _) |>               # Fix decimals (00125 → 0.0125)
+  gsub("_DOX_0021_", "_DOX_0.021_", x = _) |>         # Fix 0.021
+  gsub("_DOX_0025_", "_DOX_0.025_", x = _) |>         # Fix 0.025
+  gsub("_DOX_0075_", "_DOX_0.075_", x = _)            # Fix 0.075
+
+# Step 2: Construct paths
+files_shsy5y <- file.path(dir_salmon, folder_names, "quant.sf")
+
+# Step 3: Verify
+print("Checking first few paths:")
+head(files_shsy5y)
+head(file.exists(files_shsy5y))
+
+
+if(all(file.exists(files_shsy5y)) == FALSE) {
+  print("Warning! Not all files available")
+} 
+
+
+
+tx2gn <- read.table(tx2gn_dir, header = F, sep = "\t")
+
+colnames(tx2gn) = c("ensembl_transcript_id", "ensembl_gene_id")
+
+
+
+txi.tx_shsy5y <- tximport(files_shsy5y, 
+                          type = "salmon", 
+                          tx2gene = tx2gn,
+                          ignoreTxVersion = TRUE,
+                          ignoreAfterBar = TRUE,
+                          txOut = TRUE, dropInfReps = T)
+
+## 5. Run Deseq2 and extract results
+
+
+
+if(blocked==T){
+  colData$replicate <- as.factor(colData$replicate)
+  dds <- DESeqDataSetFromTximport(txi.tx_shsy5y, 
+                                  colData = colData, 
+                                  design =~condition+replicate)
+}else{
+  dds <- DESeqDataSetFromTximport(txi.tx_shsy5y, 
+                                  colData = colData, 
+                                  design =~condition)
+}
+
+dds <- DESeq(dds)
+
+
+fpkm_matrix <- as.data.frame(fpkm(dds))
+
+colnames(fpkm_matrix) <- colData$sample_name
+fpkm_matrix$ensembl_transcript_id_version <- rownames(fpkm_matrix)
+fpkm_matrix$ensembl_transcript_id <- sub("\\..*", "", fpkm_matrix$ensembl_transcript_id_version)
+
+write.table(fpkm_matrix, paste0(dir_out, "FPKM_table.txt"), col.names = T, row.names = F, sep= "\t", quote = F)
+
+
+
+samples_cond0 <- colData[colData$condition == "CTRL", ]$sample_name
+samples_cond1 <- colData[colData$condition == "TDP43", ]$sample_name
+
+fpkm_matrix$sample0 <- rowMeans(fpkm_matrix[, samples_cond0])
+fpkm_matrix$sample1 <- rowMeans(fpkm_matrix[, samples_cond1])
+fpkm_matrix2 <- fpkm_matrix[,c("ensembl_transcript_id", "sample0", "sample1")]
+
+
+
+tx2gn$ensembl_gene_id <- sub("\\..*", "", tx2gn$ensembl_gene_id)
+tx2gn$ensembl_transcript_id <- sub("\\..*", "", tx2gn$ensembl_transcript_id)
+
+
+fpkm_matrix2 <- merge(tx2gn, fpkm_matrix2, by="ensembl_transcript_id", all.y = T) #keeps all rows from second dataframe even if no matches 
+
+fpkm_matrix2 <- fpkm_matrix2 %>%
+  group_by(ensembl_gene_id) %>%
+  mutate(
+    max_rank = rank(-sample1, ties.method = "first"), #assigns rank based on isoform expression in sample1 (1 = highest expression)- identifies major isoform 
+    maxiso = max_rank == 1 #maxiso = TRUE = dominant isoform - highest expression levels 
+  ) %>%
+  dplyr::select(-max_rank) %>%
+  ungroup()
+
+maxiso <- fpkm_matrix2[fpkm_matrix2$maxiso==T,]$ensembl_transcript_id
+
+maxiso_df <- fpkm_matrix2[fpkm_matrix2$maxiso==T,c("ensembl_gene_id", "ensembl_transcript_id")]
+
+write.table(fpkm_matrix2, paste0(dir_out, "FPKM_mean.txt"), col.names = T, row.names = F, sep= "\t", quote = F)
+write.table(maxiso, paste0(dir_out, "maxiso.txt"), col.names = F, row.names = F, sep= "\t", quote = F)
+write.table(maxiso_df, paste0(dir_out, "maxiso_df.txt"), col.names = T, row.names = F, sep= "\t", quote = F)
+
+```
+
+#See if Maximum Isoforms are present in Splice Junctions
+```{r GRANGE}
+skipping_events <- read.csv("C:/Users/Kai/Desktop/tdp_snp_analysis/data_salmon/master_table_relevent.csv")
+
+skipping_events <- as.data.frame(skipping_events) |> 
+  separate(
+    paste_into_igv_junction,
+    into = c("chr", "pos"),
+    sep = ":",
+    convert = FALSE
+  ) |> 
+  separate(
+    pos,
+    into = c("pos_start", "pos_end"),
+    sep = "-",
+    convert = FALSE
+  )
+
+
+exon_skip <- skipping_events |> filter(
+  junc_cat == "exon_skip"
+)
+   
+
+exon_skip_gr <- exon_skip |> 
+  makeGRangesFromDataFrame(
+    start.field = "pos_start",
+    end.field = "pos_end",
+    strand.field = "strand",
+    keep.extra.columns = TRUE
+  )
+
+```
+
+```{r FIND EXONS IN JUNCTIONS}
+gtf_file <- "C:/Users/Kai/Documents/salmon_tar_tdp/gencode.v44.basic.annotation.gff3/gencode.v44.basic.annotation.gff3"
+gtf <- import(gtf_file)
+exons <- gtf[gtf$type == "exon"] #filters data to keep only exon features 
+exons_by_gene <- split(exons, mcols(exons)$gene_id) #groups exon based on parent gene IDs
+exons_by_tx <- split(exons, mcols(exons)$transcript_id) # groups exon based on transcript id
+exons_by_chr <- split(exons, as.character(seqnames(exons))) # groups exon based on chr 
+
+
+
+findOverlaps(exon_skip_gr, exons_by_tx)
+
+overlaps <- subsetByOverlaps(exons_by_tx,
+                             exon_skip_gr,
+                 ignore.strand = FALSE) #70/73 overlap between exons_skip_gr and gencode data
+
+overlaps = unlist(overlaps)
+
+#check exons in gr have gene name in overlaps
+exon_genes <- unique(mcols(exon_skip_gr)$gene) #72
+overlap_genes <- unique(mcols(overlaps)$gene_name) #78
+
+intersect(exon_genes, overlap_genes) |> view() #69
+
+missing_genes <- setdiff(exon_genes, overlap_genes)
+
+exon_skip_gr[mcols(exon_skip_gr)$gene %in% missing_genes] |> view()
+
+exon_skip_gr_resize <- exon_skip_gr-2
+
+export(exon_skip_gr_resize, "exon_skip_gr_resize.bed")
+
+overlaps2 <- subsetByOverlaps(overlaps,
+                              exon_skip_gr_resize,
+                              ignore.strand = FALSE)
+```
+
+```{r CHECK IF ONLY 1 MAX ISO PER GENE}
+be2_maxiso <- read.table("C:/Users/Kai/Documents/salmon_tdp_output/be2_curve/be2_curvemaxiso_df.txt", header = TRUE, sep = "\t")
+
+shsy5y_maxiso <- read.table("C:/Users/Kai/Documents/salmon_tdp_output/shsy5y_curve/shsy5y_curvemaxiso_df.txt", header = TRUE, sep = "\t")
+
+
+shsy5y_true <- shsy5y_maxiso_mean |> 
+  filter(maxiso == "TRUE") |> 
+  rename(transcript_id = ensembl_transcript_id)
+
+
+be2_true <- be2_maxiso_mean |> 
+  filter( maxiso == "TRUE") |> 
+  rename(transcript_id = ensembl_transcript_id)
+
+be2_true |> 
+  inner_join(shsy5y_true, by = "ensembl_gene_id", suffix = c("_be2", "_shsy5y")) |> 
+  select(ensembl_transcript_id_be2, ensembl_transcript_id_shsy5y) |> 
+  filter(ensembl_transcript_id_be2 != ensembl_transcript_id_shsy5y) |>
+  view() #190 transcript IDs differ out of 61k
+
+
+shsy5y_true |> 
+  filter( maxiso == "TRUE") |> 
+  group_by(ensembl_gene_id) |> 
+  summarise(
+    n_maxiso = sum(maxiso, na.rm = TRUE),
+    has_single = n_maxiso == 1
+  ) |> 
+  filter(has_single) |> 
+  view() # yes just 1 per gene
+
+be2_true |> 
+  filter( maxiso == "TRUE") |> 
+  group_by(ensembl_gene_id) |> 
+  summarise(
+    n_maxiso = sum(maxiso, na.rm = TRUE),
+    has_single = n_maxiso == 1
+  ) |> 
+  filter(has_single) |> 
+  view() 
+  
+```
+
+```{r FILTER OVERLAP2 FOR MAXISO TRANSCRIPT}
+#get rid of . in overlaps 2 - also got rid of number afterwards double check if thats fine 
+
+mcols(overlaps2)$transcript_id <- sub("\\..*", "", mcols(overlaps2)$transcript_id)
+
+#each gene has 1 max iso 
+
+#filtering to just see the max isoforms one 
+overlaps2_tbl <- as.tibble(overlaps2)
+
+shsy5y_max_iso_overlaps <- overlaps2_tbl |> 
+  left_join(shsy5y_true, by = "transcript_id") |> 
+  filter(maxiso == TRUE)
+
+
+be2_max_iso_overlaps <- overlaps2_tbl |> 
+  left_join(be2_true, by = "transcript_id") |> 
+  filter(maxiso == TRUE)
+
+
+#keep seqnames, strnad, start end gene id 
+shsy5y_max_iso_overlaps <- shsy5y_max_iso_overlaps |> 
+  select(seqnames, start, end, strand, gene_id, transcript_name, transcript_id)
+
+be2_max_iso_overlaps <- be2_max_iso_overlaps |> 
+  select(seqnames, start, end, strand, gene_id, transcript_name, transcript_id)
+  
+#get number of exons according to transcript id that are being skipped 
+
+
+
+#convert to grange - write out to desktop using rtracklayer export 
+be2_max_iso_overlaps_KCNQ2 <- be2_max_iso_overlaps |> filter(grepl("KCNQ2", transcript_name))
+
+be2_max_iso_overlaps_KCNQ2_gr <- be2_max_iso_overlaps_KCNQ2 |> 
+  makeGRangesFromDataFrame(
+    start.field = "start",
+    end.field = "end",
+    strand.field = "strand",
+    keep.extra.columns = TRUE
+  )
+export(be2_max_iso_overlaps_KCNQ2_gr, "be2_max_iso_overlaps_KCNQ2.bed")
+```
+
+```{r HISTOGRAM TOTAL EXONS}
+ggplot(total_exon, aes(x = total_exons)) +
+  geom_histogram(fill = "steelblue", colour = "black") +
+  labs(title = "Total Exon Count") +
+  theme(axis.text.x = element_text(45, hjust = 1)) +
+  theme_bw()
+```
+
+```{r UNIQUE GRANGE}
+be2_max_iso_overlaps <- be2_max_iso_overlaps |> 
+  rename(chr = seqnames)
+
+shsy5y_max_iso_overlaps <- shsy5y_max_iso_overlaps |> 
+  rename(chr = seqnames)
+
+
+
+be2_max_iso_overlaps_gr <-  be2_max_iso_overlaps |> 
+  makeGRangesFromDataFrame(
+    start.field = "start",
+    end.field = "end",
+    strand.field = "strand" ,
+    keep.extra.columns = TRUE
+  )
+
+shsy5y_max_iso_overlaps_gr <- shsy5y_max_iso_overlaps |> 
+  makeGRangesFromDataFrame(
+    start.field = "start",
+    end.field = "end",
+    strand.field = "strand",
+    keep.extra.columns = TRUE
+  )
+
+findOverlaps(shsy5y_max_iso_overlaps_gr, be2_max_iso_overlaps_gr)
+#completely different overlaps 
+subsetByOverlaps(exon_skip_gr_resize,
+                 be2_max_iso_overlaps_gr,
+                 ignore.strand = FALSE) |> view() #38
+
+
+subsetByOverlaps(exon_skip_gr_resize,
+                 shsy5y_max_iso_overlaps_gr,
+                 ignore.strand = FALSE) |> view() #35
+
+
+
+#these 2 share some overlaps compared to the other 2
+subsetByOverlaps(shsy5y_max_iso_overlaps_gr,
+                 exon_skip_gr_resize,
+                 ignore.strand = FALSE) |> view() 
+
+subsetByOverlaps(be2_max_iso_overlaps_gr,
+                 exon_skip_gr_resize,
+                 ignore.strand = FALSE) |> view()
+
+
+identical(granges(shsy5y_max_iso_overlaps_gr), granges(be2_max_iso_overlaps_gr))
+my_ov = findOverlaps(shsy5y_max_iso_overlaps_gr, be2_max_iso_overlaps_gr,  type = "equal") 
+
+```
+
+
+```{r TABLE AND FILTER FOR UNIQUE ID}
+be2_max_iso_overlaps |> 
+  left_join(shsy5y_max_iso_overlaps, by = "gene_id", suffix = c("_be2", "_shs") ) |> 
+  select(gene_id, transcript_id_be2, transcript_id_shs, transcript_name_be2, transcript_name_shs) |> 
+  filter(transcript_id_be2 != transcript_id_shs) |> view()
+
+sh_tmp = shsy5y_max_iso_overlaps_gr |> as.data.frame() |> 
+  mutate(exon = glue::glue('{seqnames}:{start}-{end}'))  |>  
+  distinct(gene_id,transcript_name,transcript_id,exon,strand)
+
+be_tmp = be2_max_iso_overlaps_gr |> as.data.frame() |> 
+  mutate(exon = glue::glue('{seqnames}:{start}-{end}')) |> 
+  distinct(gene_id,transcript_name,transcript_id,exon,strand)
+
+unique_list <- sh_tmp |> 
+  rbind(be_tmp) |> unique()
+
+
+# filter for unique id - only 1 exon not multiple -------------------------
+
+unique_list |> 
+  distinct(exon) |> view() #only got rid of 1 row 
+
+ skipped_exon_csv <- unique_list |> 
+   group_by(gene_id) |> 
+   mutate(
+     distinct_exons = n_distinct(exon)) |> 
+   filter(distinct_exons == 1) 
+   
+   
+ 
+
+ 
+ write.csv(skipped_exon_csv, "skipped_exon.csv", row.names = FALSE)   
+   
+```
+
+
+#Finding TDP-43 Binding Motifs
+```{r READ IN SKIPPED EXONS}
+skipped_exon <- read_csv("skipped_exon.csv")
+```
+
+```{r FULL RESIZE}
+#split exon column
+skipped_exon <- skipped_exon |>
+  separate(exon,
+           into = c("chr", "pos"),
+           sep = ":",
+           convert = FALSE
+  ) |> 
+  separate(
+    pos,
+    into = c("pos_start", "pos_end"),
+    sep = "-",
+    convert = FALSE
+  ) 
+
+#grange for resize
+skipped_exon_gr <- skipped_exon |> 
+  makeGRangesFromDataFrame(
+    start.field = "pos_start",
+    end.field = "pos_end",
+    strand.field = "strand",
+    keep.extra.columns = TRUE
+  )
+
+
+
+skipped_exon_resize <- skipped_exon_gr |> #have to do it from a GRange not a df
+  resize(width = width(skipped_exon_gr) + 150, fix = "center", ignore.strand = FALSE) #added 150 bp width, fixed at centre, FALSE = finds overlap when strands match, TRUE = finds overlap when regardless - not sure which one to use
+
+seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,skipped_exon_resize)
+skipped_exon_gr
+skipped_exon_gr$flank_sequence = as.character(seq_flank)
+
+skipped_exon_DSS <- DNAStringSet(skipped_exon_gr$flank_sequence)
+names(skipped_exon_DSS) <- skipped_exon_gr$transcript_name
+
+writeXStringSet(skipped_exon_DSS, filepath = "test_skipped.fasta")
+skipped_exon_resized_df <- as.data.frame(skipped_exon_gr) 
+
+```
+
+```{r TDP-43 MOTIF}
+tdp_43_motif <- c("TGTGTG")
+tdp_motif_DSS <- DNAString(tdp_43_motif)
+tdp_reverse_DSS <- reverseComplement(tdp_motif_DSS)
+tdp_reverse <- as.character(tdp_reverse_DSS)
+```
+
+
+```{r UPSTREAM RESIZE}
+skipped_exon_gr_up <- skipped_exon_gr # skipped exon_gr without skipped exon flank sequence
+
+upstream_gr <- promoters(skipped_exon_gr_up, upstream = 150, downstream = 0)
+
+upstream_seq <- getSeq(BSgenome.Hsapiens.UCSC.hg38, upstream_gr)
+
+skipped_exon_gr_up$flank_sequence = as.character(upstream_seq)
+
+upstream_DSS <- DNAStringSet(skipped_exon_gr_up$flank_sequence)
+names(upstream_DSS) <- skipped_exon_gr_up$transcript_name
+
+writeXStringSet(upstream_DSS, filepath = "upstream_skipped.fasta")
+```
+
+```{r DOWNSTREAM RESIZE }
+skipped_exon_gr_down <- skipped_exon_gr # need to re-reun the skipped_exon_gr creation to make this a blank slate 
+
+downstream_gr <- flank(skipped_exon_gr, width = 150, start = FALSE, ignore.strand = FALSE)
+
+
+downstream_seq <- getSeq(BSgenome.Hsapiens.UCSC.hg38, downstream_gr)
+skipped_exon_gr_down$flank_sequence = as.character(downstream_seq)
+
+downstream_DSS <- DNAStringSet(skipped_exon_gr_down$flank_sequence)
+names(downstream_DSS) <- skipped_exon_gr_down$transcript_name
+
+writeXStringSet(downstream_DSS, filepath = "downstream_skipped.fasta")
+```
+
+```{r FINDING MOTIFS- EXONS}
+#read in fasta 
+skipped_fasta <- read_fasta("C:/Users/Kai/Desktop/tdp_snp_analysis/test_skipped.fasta")
+
+skipped_seq <- skipped_fasta$sq
+skipped_seq_rev <- reverse(skipped_seq)
+
+find_motifs(skipped_fasta, tdp_43_motif)  #matches integers for vmatch that worked 
+find_motifs(skipped_fasta, tdp_reverse)
+
+```
+
+```{r FINDING MOTIFS- UPSTREAM}
+upstream_fasta <- read_fasta("C:/Users/Kai/Desktop/tdp_snp_analysis/upstream_skipped.fasta")
+
+find_motifs(upstream_fasta, tdp_43_motif)
+find_motifs(upstream_fasta, tdp_reverse)
+```
+
+```{r FINDING MOTIFS - DOWNSTREAM}
+downstream_fasta <- read_fasta("C:/Users/Kai/Desktop/tdp_snp_analysis/downstream_skipped.fasta")
+
+find_motifs(downstream_fasta, tdp_43_motif) 
+find_motifs(downstream_fasta, tdp_reverse)
+```
+

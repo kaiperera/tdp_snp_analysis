@@ -62,6 +62,10 @@ names(skipped_exon_DSS) <- skipped_exon_gr$transcript_name
 writeXStringSet(skipped_exon_DSS, filepath = "test_skipped.fasta")
 skipped_exon_resized_df <- as.data.frame(skipped_exon_gr) 
 
+tdp_43_motif <- c("TGTGTG")
+tdp_motif_DSS <- DNAString(tdp_43_motif)
+tdp_reverse_DSS <- reverseComplement(tdp_motif_DSS)
+tdp_reverse <- as.character(tdp_reverse_DSS)
 
 
 # upstream and resize -----------------------------------------------------
