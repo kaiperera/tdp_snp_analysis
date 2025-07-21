@@ -155,7 +155,7 @@ library(plyranges)
 resize_clean <- resize_clean |>  
   join_overlap_left(snp_info)|> unique() 
 
-
+resize_clean <- unique(resize_clean)
 
 healthy_disruptive_als_snps <- DNAStringSet(resize_clean$flank_sequence)
 names(healthy_disruptive_als_snps) <- resize_clean$RefSNP_id
@@ -228,6 +228,7 @@ resize_non <- resize_non[strand(resize_non) %in% c("+", "-")]
 seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,resize_non)
 
 resize_non$flank_sequence = as.character(seq_flank)
+resize_non <- unique(resize_non)
 
 control_non_disruptive_DSS <- DNAStringSet(resize_non$flank_sequence)
 names(control_non_disruptive_DSS) <- resize_non$RefSNP_id
