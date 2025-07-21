@@ -310,3 +310,13 @@ ggplot(base_change_counts, aes(x = base_change, y = total_count, fill = base_cha
 # visualise top 10 disruptive snps ----------------------------------------
 
 library(ggtranscript)
+
+#getting 10 most disruptive snps
+most_disruptive_10 <- disruptive_snps |> 
+  slice_min(min_diff, n = 10)
+
+most_disruptive_10 <- most_disruptive_10 %>% 
+  dplyr::rename(RefSNP_id = hm_rsid)
+
+most_disruptive_10 <- most_disruptive_10 |> 
+   left_join(as.data.frame(resize_clean_unique), by = "RefSNP_id")
