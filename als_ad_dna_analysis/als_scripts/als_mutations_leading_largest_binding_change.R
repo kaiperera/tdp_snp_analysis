@@ -155,15 +155,19 @@ library(plyranges)
 resize_clean <- resize_clean |>  
   join_overlap_left(snp_info)|> unique() 
 
-resize_clean <- unique(resize_clean)
+resize_clean_unique <- resize_clean |>
+  group_by(RefSNP_id) |>     
+  slice(1) |>                 # Keep first occurrence of each rsID
+  ungroup()                  
 
-healthy_disruptive_als_snps <- DNAStringSet(resize_clean$flank_sequence)
-names(healthy_disruptive_als_snps) <- resize_clean$RefSNP_id
+healthy_disruptive_als_snps <- DNAStringSet(resize_clean_unique$flank_sequence)
+names(healthy_disruptive_als_snps) <- resize_clean_unique$RefSNP_id
 
 
 
 writeXStringSet(healthy_disruptive_als_snps, filepath = "disruptive_als_snps.fasta")
 
+export.bed(resize_clean_unique, con = "disruptive_snps.bed")
 
 # ALS control - sample from non disruptive --------------------------------
 
@@ -228,9 +232,20 @@ resize_non <- resize_non[strand(resize_non) %in% c("+", "-")]
 seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,resize_non)
 
 resize_non$flank_sequence = as.character(seq_flank)
-resize_non <- unique(resize_non)
 
-control_non_disruptive_DSS <- DNAStringSet(resize_non$flank_sequence)
-names(control_non_disruptive_DSS) <- resize_non$RefSNP_id
+resize_non_unique <- resize_non |>
+  group_by(RefSNP_id) |>     
+  slice(1) |>                 # Keep first occurrence of each rsID
+  ungroup() 
+
+control_non_disruptive_DSS <- DNAStringSet(resize_non_unique$flank_sequence)
+names(control_non_disruptive_DSS) <- resize_non_unique$RefSNP_id
 
 writeXStringSet(control_non_disruptive_DSS, filepath = "control_non_disruptive.fasta")
+
+
+
+
+# checking strand info ----------------------------------------------------
+
+
