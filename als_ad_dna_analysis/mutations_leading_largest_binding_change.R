@@ -98,18 +98,6 @@ print(gene_overlaps$symbol)
 
 library(clusterProfiler)
 
-# Get GO terms- came back empty so come back to this 
-go_terms <- enrichGO(
-  gene = na.omit(unique(gene_overlaps$geneid)),
-  OrgDb = org.Hs.eg.db,
-  keyType = "ENTREZID",
-  ont = "ALL",  # "BP" (Biological Process), "MF" (Molecular Function), "CC" (Cellular Component)
-  readable = TRUE  # Convert Entrez IDs to gene symbols
-)
-
-
-
-
 
 ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 
@@ -131,18 +119,6 @@ head(gene_descriptions)
 gene_overlaps |> 
   left_join(gene_descriptions, by = "symbol") |>
   select(description) |> print()
-
-library(DOSE) # enhances visualisation and downstream analysis
-#look at kegg database for biological apthways since GO terms arent working - also not working 
-kegg <- enrichKEGG(gene = gene_ids, organism = "hsa")
-
-
-kegg <- enrichKEGG(
-  gene = gene_ids,           
-  organism = "hsa",
-  keyType = "ncbi-geneid",   
-  pvalueCutoff = 0.1        
-)
 
 
 #get detailed annotations of each gene
@@ -200,4 +176,60 @@ non_disruptive_snps <- final_result_tbl |>
 
 non_disruptive_info <- snpsById(SNPlocs.Hsapiens.dbSNP155.GRCh38, non_disruptive_snps$hm_rsid, ifnotfound="drop") 
   
+uscs_format <- ifelse(
+  seqlevels(non_disruptive_info) == "MT",  
+  "chrM",
+  paste0("chr", seqlevels(non_disruptive_info))
+)
 
+seqlevels(non_disruptive_info) <- uscs_format
+
+genome(non_disruptive_info) <- "hg38"
+
+
+non_disruptive_info <- as.data.frame(non_disruptive_info)
+
+non_disruptive_gr <- non_disruptive_info |> 
+  makeGRangesFromDataFrame(
+    seqnames.field = "seqnames", 
+    start.field = "pos",
+    end.field = "pos",
+    keep.extra.columns = TRUE
+  )
+
+#strand
+
+
+overlaps <- findOverlaps(non_disruptive_gr, transcripts(TxDb.Hsapiens.UCSC.hg38.knownGene))
+strand_counts <- tapply(strand(transcripts(TxDb.Hsapiens.UCSC.hg38.knownGene))[subjectHits(overlaps)], 
+                        queryHits(overlaps), 
+                        function(x) {
+                          tbl <- table(x)
+                          names(tbl)[which.max(tbl)]
+                        })
+
+non_disruptive_gr$strand <- "*"
+strand(non_disruptive_gr)[as.numeric(names(strand_counts))] <- unname(strand_counts)
+
+
+#resize
+reserved_names <- c("seqnames", "ranges", "strand", "seqlevels", 
+                    "seqlengths", "isCircular", "start", "end", 
+                    "width", "element")
+bad_cols <- names(mcols(non_disruptive_gr))[names(mcols(non_disruptive_gr)) %in% reserved_names]
+for (col in bad_cols) {
+  names(mcols(non_disruptive_gr))[names(mcols(non_disruptive_gr)) == col] <- paste0("meta_", col)
+}
+resize_non <- non_disruptive_gr |> 
+  resize(width = width(non_disruptive_gr) + 74, fix = "center", ignore.strand = FALSE)
+
+resize_non <- resize_non[strand(resize_non) %in% c("+", "-")]
+
+seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,resize_non)
+
+resize_non$flank_sequence = as.character(seq_flank)
+
+control_non_disruptive_DSS <- DNAStringSet(resize_non$flank_sequence)
+names(control_non_disruptive_DSS) <- resize_non$RefSNP_id
+
+writeXStringSet(control_non_disruptive_DSS, filepath = "control_non_disruptive.fasta")
