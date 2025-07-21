@@ -133,7 +133,7 @@ gene_overlaps |>
   select(description) |> print()
 
 library(DOSE) # enhances visualisation and downstream analysis
-#look at kegg database for biological apthways since GO terms arent working 
+#look at kegg database for biological apthways since GO terms arent working - also not working 
 kegg <- enrichKEGG(gene = gene_ids, organism = "hsa")
 
 
@@ -143,3 +143,61 @@ kegg <- enrichKEGG(
   keyType = "ncbi-geneid",   
   pvalueCutoff = 0.1        
 )
+
+
+#get detailed annotations of each gene
+AnnotationDbi::select(org.Hs.eg.db, 
+       keys=gene_ids, 
+       columns=c("SYMBOL", "GENENAME", "UNIPROT", "PATH"), 
+       keytype="ENTREZID") |> unique()
+
+
+
+# ALS- are disruptive mustations in a specific motif ----------------------
+
+
+gene_overlaps <- dplyr::rename(gene_overlaps, chr = seqnames)
+gene_overlaps_gr <- gene_overlaps |> 
+  makeGRangesFromDataFrame(
+    seqnames.field = "chr",
+    start.field = "start",
+    end.field = "end",
+    strand.field = "strand",
+    keep.extra.columns = TRUE
+  )
+
+resize <- gene_overlaps_gr |> 
+  resize(width = width(gene_overlaps_gr) + 74, fix = "center", ignore.strand = FALSE)
+
+resize_clean <- resize[strand(resize) %in% c("+", "-")]
+
+seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,resize_clean)
+
+resize_clean$flank_sequence = as.character(seq_flank)
+
+library(plyranges)
+resize_clean <- resize_clean |>  
+  join_overlap_left(snp_info)|> unique() 
+
+
+
+healthy_disruptive_als_snps <- DNAStringSet(resize_clean$flank_sequence)
+names(healthy_disruptive_als_snps) <- resize_clean$RefSNP_id
+
+
+
+writeXStringSet(healthy_disruptive_als_snps, filepath = "disruptive_als_snps.fasta")
+
+
+# ALS control - sample from non disruptive --------------------------------
+
+non_disruptive_snps <- final_result_tbl |>
+  mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |> 
+  select(hm_rsid,snp_in_tdp) |> 
+  left_join(unique_score_rsid)  |> 
+  filter(min_diff > -0.1398594 ) |> 
+  filter(snp_in_tdp == FALSE)
+
+non_disruptive_info <- snpsById(SNPlocs.Hsapiens.dbSNP155.GRCh38, non_disruptive_snps$hm_rsid, ifnotfound="drop") 
+  
+
