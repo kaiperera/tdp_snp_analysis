@@ -313,10 +313,41 @@ library(ggtranscript)
 
 #getting 10 most disruptive snps
 most_disruptive_10 <- disruptive_snps |> 
-  slice_min(min_diff, n = 10)
+  slice_min(min_diff, n = 11)
 
 most_disruptive_10 <- most_disruptive_10 %>% 
   dplyr::rename(RefSNP_id = hm_rsid)
 
 most_disruptive_10 <- most_disruptive_10 |> 
    left_join(as.data.frame(resize_clean_unique), by = "RefSNP_id")
+
+#prepare data for igv
+most_disruptive_10 <- most_disruptive_10[-10, ]
+
+snp_bed <- most_disruptive_10 %>%
+  mutate(
+    name = paste0(RefSNP_id, "|", ifelse(snp_in_tdp, "TDP", "non-TDP")),
+    score = 0,
+    strand = ".",
+    thickStart = start,
+    thickEnd = end,
+    itemRgb = ifelse(snp_in_tdp, "255,0,0", "0,0,255")  # Red for TDP, blue for non-TDP
+  ) %>%
+  select(seqnames, start, end, name, score, strand, thickStart, thickEnd, itemRgb)
+
+# Write to BED file
+write_tsv(snp_bed, "snp_data.bed", col_names = FALSE)
+
+
+# Generate IGV batch script
+igv_script <- snp_bed %>%
+  distinct(seqnames, start, end) %>%
+  mutate(
+    command = paste0("goto", " ", seqnames, ":", start-5000, "-", end+5000, "\n", 
+                     "snapshot", " ", seqnames, "_", start, "_", end, ".png\n")
+  ) %>%
+  pull(command) %>%
+  paste(collapse = "")
+
+# Write to file
+writeLines(igv_script, "igv_batch_script.txt")
