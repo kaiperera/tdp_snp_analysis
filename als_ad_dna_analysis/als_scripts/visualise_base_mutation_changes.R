@@ -27,6 +27,18 @@ ggplot(base_change_counts, aes(x = base_change, y = total_count, fill = base_cha
        x = "Base Change",
        y = "Count") +
   scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 5)) +
+  theme(
+    axis.text.x = element_text(size = 5, vjust = 0.5),  # Horizontal + centered
+    plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm")  # Add margins
+  ) +
+  theme(
+    legend.key.size = unit(0.1, "cm"),  # Makes  boxes smaller
+    legend.text = element_text(size = 5)  
+  ) +
   theme_bw()
+
+
+
+
+
 
