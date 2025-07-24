@@ -5,33 +5,6 @@ unique_score_rsid <- histogram |>
   ungroup() |> #Ungroups as histogram is grouped by score
   distinct(hm_rsid,min_diff,max_diff)
 
-gene_overlaps |>
-  mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |> 
-  select(hm_rsid,snp_in_tdp,symbol) |> 
-  left_join(unique_score_rsid) |> 
-  ggplot(aes(x = snp_in_tdp,
-             y = min_diff )) +
-  geom_boxplot(fill = "cyan", 
-               colour = "orchid4") +
-  geom_hline(yintercept = CE_vline_min,
-             size = 2,
-             linetype = 'dotted') +
-  geom_text(
-    aes(
-      label = ifelse(min_diff < CE_vline_min, symbol, ""),
-      color = min_diff < quantile(min_diff, probs = 0.1) 
-    ),
-    position = position_jitter(width = 0.2),
-    size = 3,
-    show.legend = FALSE
-  ) +
-  scale_color_manual(values = c("TRUE" = "red", "FALSE" = "black"))+
-  labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
-       x = "SNP in Binding Region Status",
-       y = "Minimum Difference") +
-  theme_bw() +
-  stat_compare_means()
-#why different p value?
 
 
 # gene names for all snps -------------------------------------------------
@@ -114,34 +87,23 @@ gene_overlaps <- gene_overlaps |>
 
 plot_data <- gene_overlaps |>
   mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |> 
-  select(hm_rsid, snp_in_tdp, symbol) |> 
+  dplyr::select(hm_rsid, snp_in_tdp, symbol) |> 
   left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many") |> 
   filter(!is.na(min_diff)) 
 
-
-extreme_threshold <- quantile(plot_data$min_diff, probs = 0.1, na.rm = TRUE)
+plot_data <- plot_data |> 
+  mutate(
+    show_label = min_diff < CE_vline_min,
+    y_jitter = jitter(min_diff, factor = 0.5)
+  )
 
 ggplot(plot_data, aes(x = snp_in_tdp, y = min_diff)) +
-  geom_boxplot(fill = "cyan", colour = "orchid4", outlier.shape = NA) +
-  geom_hline(yintercept = CE_vline_min, size = 1.5, linetype = 'dotted', color = "red") +
-  geom_jitter(width = 0.2, alpha = 0.6, size = 2) +
+  geom_boxplot(fill = "cyan", colour = "orchid4") +
   geom_text_repel(
-    aes(
-      label = ifelse(min_diff < extreme_threshold, symbol, ""),
-      color = ifelse(min_diff < extreme_threshold, "red", "black")
-    ),
+    aes(label = ifelse(min_diff < CE_vline_min, symbol, "")),
     size = 3,
-    max.overlaps = 50,
-    min.segment.length = 0.1,
-    box.padding = 0.5,
-    seed = 123  # For reproducible jitter
-  ) +
-  scale_color_identity() +
-  labs(
-    title = "Min_Diff distribution of SNPs based on Binding Region Presence",
-    subtitle = paste("Red labels show bottom 10% (threshold =", round(extreme_threshold, 3), ")"),
-    x = "SNP in Binding Region Status",
-    y = "Minimum Difference"
-  ) +
-  theme_bw() +
-  stat_compare_means()
+    max.overlaps = 20,        # Increase if you need more labels
+    min.segment.length = 0.1, # Reduce line segments
+    box.padding = 0.5,        # Space around labels
+    force = 0.5               # Adjust repelling force
+  ) 

@@ -309,7 +309,7 @@ ggplot(base_change_counts, aes(x = base_change, y = total_count, fill = base_cha
 
 # visualise top 10 disruptive snps ----------------------------------------
 
-library(ggtranscript)
+
 
 #getting 10 most disruptive snps
 most_disruptive_10 <- disruptive_snps |> 
