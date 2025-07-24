@@ -1,7 +1,7 @@
 # visualize base pair change mutations ------------------------------------
 
 variant_data <- als_snps_to_start |> 
-  select(hm_variant_id,hm_rsid, hm_effect_allele, hm_other_allele)
+  dplyr::select(hm_variant_id,hm_rsid, hm_effect_allele, hm_other_allele)
 
 #base change column
 variant_data$base_change <- paste0(variant_data$hm_other_allele, ">", variant_data$hm_effect_allele)
@@ -25,7 +25,8 @@ ggplot(base_change_counts, aes(x = base_change, y = total_count, fill = base_cha
   geom_text(aes(label = total_count), vjust = -0.5, size = 3) +
   labs(title = "Variant Base Changes",
        x = "Base Change",
-       y = "count") +
+       y = "Count") +
+  scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 5)) +
   theme_bw()
-
 
