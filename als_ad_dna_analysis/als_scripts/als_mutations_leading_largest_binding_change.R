@@ -351,3 +351,57 @@ igv_script <- snp_bed %>%
 
 # Write to file
 writeLines(igv_script, "igv_batch_script.txt")
+
+
+# do same for skipped exons -----------------------------------------------
+skipped_exon <- read_csv("skipped_exon.csv")
+
+
+
+#finding skipped exons in tdp binding regions
+tdp_binding_sites <- as.data.frame(granges_bed)
+
+tdp_binding_sites$genomic_coord <- sprintf("%s:%d-%d", tdp_binding_sites$seqnames, tdp_binding_sites$start, tdp_binding_sites$end)
+
+skipped_exon <- skipped_exon |> 
+  separate(exon,
+           into = c("seqnames", "start", "end"), 
+           sep = ":|-", 
+           remove = FALSE,  
+           convert = TRUE)
+
+skipped_exon_gr <- skipped_exon |> 
+  makeGRangesFromDataFrame(
+    seqnames.field = "seqnames",
+    start.field = "start",
+    end.field = "end",
+    strand.field = "strand",
+    keep.extra.columns = TRUE
+  )
+
+
+
+findOverlaps(skipped_exon_gr, granges_bed)          
+exon_overlap <- subsetByOverlaps(skipped_exon_gr, 
+                                  granges_bed,
+                                  maxgap = 200,
+                                  ignore.strand = FALSE)
+exon_overlap_df <- as.data.frame(exon_overlap)
+
+skipped_in_binding <- skipped_exon |>
+  mutate(snp_in_tdp = transcript_name %in% exon_overlap_df$transcript_name) |> 
+  filter(snp_in_tdp == TRUE) 
+
+exon_bed <- skipped_in_binding %>%
+  mutate(
+    name = paste0(transcript_name, "|", ifelse(snp_in_tdp, "TDP", "non-TDP")),
+    score = 0,
+    strand = ".",
+    thickStart = start,
+    thickEnd = end,
+    itemRgb = ifelse(snp_in_tdp, "255,0,0", "0,0,255")  # Red for TDP, blue for non-TDP
+  ) %>%
+  select(seqnames, start, end, name, score, strand, thickStart, thickEnd, itemRgb)
+
+# Write to BED file
+write_tsv(exon_bed, "exon_data.bed", col_names = FALSE)
