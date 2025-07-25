@@ -91,19 +91,52 @@ plot_data <- gene_overlaps |>
   left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many") |> 
   filter(!is.na(min_diff)) 
 
-plot_data <- plot_data |> 
-  mutate(
-    show_label = min_diff < CE_vline_min,
-    y_jitter = jitter(min_diff, factor = 0.5)
-  )
+label_data <- plot_data %>% 
+  filter(min_diff < CE_vline_min)
 
 ggplot(plot_data, aes(x = snp_in_tdp, y = min_diff)) +
   geom_boxplot(fill = "cyan", colour = "orchid4") +
+  geom_hline(yintercept = CE_vline_min, size = 2, linetype = 'dotted') +
+  labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
+       x = "SNP in Binding Region Status",
+       y = "Minimum Difference") +
+  geom_text_repel(
+    data = label_data,  # Use filtered data
+    aes(label = symbol),
+    direction = "x",
+    angle = 90,
+    segment.size = 0.2,
+    nudge_y = -0.05,
+    box.padding = 0.3,  # Reduced padding
+    force = 0.3,        # Reduced force
+    max.overlaps = 20,  # Limit overlaps
+    size = 3,
+    show.legend = FALSE
+  ) +
+  theme_bw() +
+  stat_compare_means()
+
+ggplot(plot_data, aes(x = snp_in_tdp,
+           y = min_diff )) +
+  geom_boxplot(fill = "cyan", 
+               colour = "orchid4") +
+  geom_hline(yintercept = CE_vline_min,
+             size = 2,
+             linetype = 'dotted') +
+  labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
+       x = "SNP in Binding Region Status",
+       y = "Minimum Difference") +
   geom_text_repel(
     aes(label = ifelse(min_diff < CE_vline_min, symbol, "")),
+    direction = "x",  # Force horizontal movement first
+    angle = 90,       # Vertical text
+    segment.size = 0.2, # Thin connector lines
+    nudge_y = -0.05,   # Push labels downward
+    box.padding = 0.5, # Spacing around labels
+    force = 0.5,       # Adjust repelling force
+    max.overlaps = Inf, # Allow unlimited overlaps
     size = 3,
-    max.overlaps = 20,        # Increase if you need more labels
-    min.segment.length = 0.1, # Reduce line segments
-    box.padding = 0.5,        # Space around labels
-    force = 0.5               # Adjust repelling force
-  ) 
+    show.legend = FALSE
+  )
+  theme_bw() +
+  stat_compare_means()
