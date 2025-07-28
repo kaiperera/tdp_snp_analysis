@@ -42,24 +42,43 @@ skipped_exon_gr <- skipped_exon |>
     keep.extra.columns = TRUE
   )
 
-skipped_exon_resize <- skipped_exon_gr |> #have to do it from a GRange not a df
-  resize(width = width(skipped_exon_gr) + 250, fix = "center", ignore.strand = FALSE) #added 150 bp width, fixed at centre, FALSE = finds overlap when strands match, TRUE = finds overlap when regardless - not sure which one to use
 
-seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,skipped_exon_resize)
+chosen_exons = resize(skipped_exon_gr,fix = 'end',width = 1)
+chosen_exons = unique(resize(chosen_exons,fix = 'center',width = 250))
 
-skipped_exon_gr$flank_sequence = as.character(seq_flank)
 
-skipped_exon_DSS <- DNAStringSet(skipped_exon_gr$flank_sequence)
-names(skipped_exon_DSS) <- skipped_exon_gr$transcript_name
+seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,chosen_exons)
 
-writeXStringSet(skipped_exon_DSS, filepath = "skipped_exon_250bp_flank.fasta")
+chosen_exons$flank_sequence = as.character(seq_flank)
+
+skipped_exon_DSS <- DNAStringSet(chosen_exons$flank_sequence)
+names(skipped_exon_DSS) <- chosen_exons$transcript_name
+
+writeXStringSet(skipped_exon_DSS, filepath = "skipped_exon_250bp_end.fasta")
+
+
+
+
+chosen_exons_start = resize(skipped_exon_gr,fix = 'start',width = 1)
+chosen_exons_start = unique(resize(chosen_exons_start,fix = 'center',width = 250))
+
+seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,chosen_exons_start)
+
+chosen_exons_start$flank_sequence = as.character(seq_flank)
+
+skipped_exon_DSS_start <- DNAStringSet(chosen_exons_start$flank_sequence)
+names(skipped_exon_DSS_start) <- chosen_exons_start$transcript_name
+
+writeXStringSet(skipped_exon_DSS_start, filepath = "skipped_exon_250bp_start.fasta")
+
+
 
 
 # BED SKIPPED -------------------------------------------------------------
 
-export(skipped_exon_gr, "skipped_exon_250bp.bed")
+export(chosen_exons, "skipped_exon_250bp_end.bed")
 
-
+export(chosen_exons_start, "skipped_exon_250bp_start.bed")
 
 # FASTA RANDOM ------------------------------------------------------------
 
@@ -93,28 +112,59 @@ strand(random_exons_37) <- sample(
   replace = TRUE
 )
 
+random_exons_end = resize(random_exons_37,fix = 'end',width = 1)
+random_exons_end = unique(resize(random_exons_end,fix = 'center',width = 250))
 
 
-random_37_resize <- random_exons_37 |> 
-  resize(width = width(random_exons_37) + 250, fix = "center", ignore.strand = FALSE )
+seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,random_exons_end)
 
-seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,random_37_resize)
+random_exons_end$flank_sequence_exon = as.character(seq_flank)
 
-random_exons_37$flank_sequence_exon = as.character(seq_flank)
+names(random_exons_end) <- paste0("exon_", 1:length(random_exons_end))
+mcols(random_exons_end)$name <- names(random_exons_end)
 
-names(random_exons_37) <- paste0("exon_", 1:length(random_exons_37))
-mcols(random_exons_37)$name <- names(random_exons_37)
+random_exons_end <- random_exons_end[!grepl("^N+$", as.character(random_exons_end))]
 
-random_exons_37 <- random_exons_37[!grepl("^N+$", as.character(random_exons_37))]
+random_exons_end_DSS <- DNAStringSet(random_exons_end$flank_sequence_exon)
+names(random_exons_end_DSS) <- random_exons_end$name
 
-random_exons_37_DSS <- DNAStringSet(random_exons_37$flank_sequence_exon)
-names(random_exons_37_DSS) <- random_exons_37$name
+writeXStringSet(random_exons_end_DSS, filepath = "random_exons_250bp_end.fasta")
 
-writeXStringSet(random_exons_37_DSS, filepath = "random_exons_250bp.fasta")
 
+
+
+
+random_exons_start = resize(random_exons_37,fix = 'start',width = 1)
+random_exons_start = unique(resize(random_exons_start,fix = 'center',width = 250))
+
+
+seq_flank = getSeq( BSgenome.Hsapiens.UCSC.hg38,random_exons_start)
+
+random_exons_start$flank_sequence_exon = as.character(seq_flank)
+
+names(random_exons_start) <- paste0("exon_", 1:length(random_exons_start))
+mcols(random_exons_start)$name <- names(random_exons_start)
+
+random_exons_start <- random_exons_start[!grepl("^N+$", as.character(random_exons_start))]
+
+random_exons_start_DSS <- DNAStringSet(random_exons_start$flank_sequence_exon)
+names(random_exons_start_DSS) <- random_exons_start$name
+
+writeXStringSet(random_exons_start_DSS, filepath = "random_exons_250bp_start.fasta")
 
 
 
 # BED RANDOM --------------------------------------------------------------
 
-export(random_exons_37, "random_exon_250bp.bed")
+export(random_exons_start, "random_exon_250bp_start.bed")
+
+export(random_exons_end, "random_exon_250bp_end.bed")
+
+
+
+# checking bed files are ok -----------------------------------------------
+check <- read.table("C:/Users/Kai/Desktop/tdp_snp_analysis/skipped_exon_250bp_2.bed")
+
+check %>% 
+  mutate(width = V3 - V2) %>% 
+  dplyr::count(width)  # All widths should be 501 (for SNPs)
