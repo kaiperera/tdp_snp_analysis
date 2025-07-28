@@ -93,10 +93,15 @@ plot_data <- gene_overlaps |>
 label_data <- plot_data %>% 
   filter(min_diff < CE_vline_min, !is.na(symbol)) 
 
-label_data_filtered <- label_data %>%
-  group_by(symbol) %>%
-  slice_sample(n = 5, replace = FALSE) %>%
+
+
+label_data_filtered <- label_data |>
+  filter(symbol %in% prevalent_genes$symbol) |>
+  group_by(symbol) |>
+  slice_sample(n = 5, replace = FALSE) |>       
   ungroup()
+
+
 
 all_symbols <- unique(label_data_filtered$symbol)
 gene_colours <- setNames(
@@ -118,14 +123,15 @@ final_result_tbl |>
     data = label_data_filtered,
     aes(x = as.factor(snp_in_tdp), y = min_diff, color = symbol),
     size = 1.5,
-    alpha = 0.9
+    alpha = 0.9,
+    position = position_nudge(x = 0.2)
   ) +
   scale_color_manual(
-    values = gene_colours,
-    name = "Gene Symbols (≤5 points each)",
+    values = scales::hue_pal()(10),
+    name = "Top 10 Prevalent Genes ",
     guide = guide_legend(override.aes = list(alpha = 1, size = 2), ncol = 1),
     drop = FALSE
-  ) +
+  )  +
   labs(
     title = "Min_Diff Distribution of SNPs by Binding Region Presence (Filtered)",
     x = "SNP in TDP-43 Binding Region",
@@ -142,19 +148,19 @@ final_result_tbl |>
              
 
   
+ #find the most prevalent genes and highlight to plot 
   
-  
-plot_data %>%
-  filter(!is.na(symbol)) %>%
-  group_by(symbol) %>%
-  summarise(min_min_diff = min(min_diff, na.rm = TRUE)) %>%
-  arrange(min_min_diff) %>% view()
+
+prevalent_genes <- dplyr::count(label_data, symbol, sort = TRUE) |>
+  filter(!is.na(symbol)) |>
+  slice_head(n = 10)
 
 
-plot_data %>%
-  unnest(symbol)  %>%
-  filter(!is.na(symbol)) %>%   
-  count(symbol, sort = TRUE)
 
-count(plot_data, symbol)
-symbols()
+
+
+
+
+
+
+
