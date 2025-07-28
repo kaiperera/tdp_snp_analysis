@@ -39,6 +39,19 @@ ggplot(base_change_counts, aes(x = base_change, y = total_count, fill = base_cha
 
 
 
+# most common  base changes in als snps with min diff lower than CE -------
+plot_data <- gene_overlaps |>
+  mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |> 
+  dplyr::select(hm_rsid, snp_in_tdp, symbol) |> 
+  left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many")
 
+base_change <- count_data |> 
+  left_join(plot_data, by = "hm_rsid") 
 
+count_data <- as.data.frame(table(variant_data$hm_rsid, variant_data$base_change))
+names(count_data) <- c("hm_rsid", "base_change", "count")
 
+base_change_counts <- count_data |> 
+  group_by(base_change) |> 
+  summarise(total_count = sum(count)) |> 
+  filter(total_count > 0) 

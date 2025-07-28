@@ -88,36 +88,17 @@ gene_overlaps <- gene_overlaps |>
 plot_data <- gene_overlaps |>
   mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |> 
   dplyr::select(hm_rsid, snp_in_tdp, symbol) |> 
-  left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many") |> 
-  filter(!is.na(min_diff)) 
+  left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many")
 
 label_data <- plot_data %>% 
   filter(min_diff < CE_vline_min)
 
-ggplot(plot_data, aes(x = snp_in_tdp, y = min_diff)) +
-  geom_boxplot(fill = "cyan", colour = "orchid4") +
-  geom_hline(yintercept = CE_vline_min, size = 2, linetype = 'dotted') +
-  labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
-       x = "SNP in Binding Region Status",
-       y = "Minimum Difference") +
-  geom_text_repel(
-    data = label_data,  # Use filtered data
-    aes(label = symbol),
-    direction = "x",
-    angle = 90,
-    segment.size = 0.2,
-    nudge_y = -0.05,
-    box.padding = 0.3,  # Reduced padding
-    force = 0.3,        # Reduced force
-    max.overlaps = 20,  # Limit overlaps
-    size = 3,
-    show.legend = FALSE
-  ) +
-  theme_bw() +
-  stat_compare_means()
-
-ggplot(plot_data, aes(x = snp_in_tdp,
-           y = min_diff )) +
+final_result_tbl |>
+  mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |> 
+  dplyr::select(hm_rsid,snp_in_tdp) |> 
+  left_join(unique_score_rsid) |> 
+  ggplot(aes(x = snp_in_tdp,
+             y = min_diff )) +
   geom_boxplot(fill = "cyan", 
                colour = "orchid4") +
   geom_hline(yintercept = CE_vline_min,
@@ -126,17 +107,18 @@ ggplot(plot_data, aes(x = snp_in_tdp,
   labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
        x = "SNP in Binding Region Status",
        y = "Minimum Difference") +
-  geom_text_repel(
-    aes(label = ifelse(min_diff < CE_vline_min, symbol, "")),
-    direction = "x",  # Force horizontal movement first
-    angle = 90,       # Vertical text
-    segment.size = 0.2, # Thin connector lines
-    nudge_y = -0.05,   # Push labels downward
-    box.padding = 0.5, # Spacing around labels
-    force = 0.5,       # Adjust repelling force
-    max.overlaps = Inf, # Allow unlimited overlaps
-    size = 3,
-    show.legend = FALSE
-  )
+    geom_text_repel(
+      data = label_data,
+      aes( label = symbol),  
+      direction = "x",
+      angle = 90,
+      segment.size = 0.2,
+      nudge_y = -0.05,
+      force = 0.3,        # Reduced force
+      max.overlaps = 20,  # Limit overlaps
+      size = 3,
+      show.legend = FALSE
+    )+
   theme_bw() +
-  stat_compare_means()
+  stat_compare_means() 
+
