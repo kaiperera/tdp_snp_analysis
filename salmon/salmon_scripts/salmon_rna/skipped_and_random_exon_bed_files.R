@@ -55,6 +55,12 @@ names(skipped_exon_DSS) <- skipped_exon_gr$transcript_name
 writeXStringSet(skipped_exon_DSS, filepath = "skipped_exon_250bp_flank.fasta")
 
 
+# BED SKIPPED -------------------------------------------------------------
+
+export(skipped_exon_gr, "skipped_exon_250bp.bed")
+
+
+
 # FASTA RANDOM ------------------------------------------------------------
 
 gtf_file <- "C:/Users/Kai/Documents/salmon_tar_tdp/gencode.v44.basic.annotation.gff3/gencode.v44.basic.annotation.gff3"
@@ -105,3 +111,10 @@ random_exons_37_DSS <- DNAStringSet(random_exons_37$flank_sequence_exon)
 names(random_exons_37_DSS) <- random_exons_37$name
 
 writeXStringSet(random_exons_37_DSS, filepath = "random_exons_250bp.fasta")
+
+
+
+
+# BED RANDOM --------------------------------------------------------------
+
+export(random_exons_37, "random_exon_250bp.bed")
