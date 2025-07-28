@@ -91,7 +91,9 @@ plot_data <- gene_overlaps |>
   left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many")
 
 label_data <- plot_data %>% 
-  filter(min_diff < CE_vline_min)
+  filter(min_diff < CE_vline_min) |> 
+  filter(!is.na(symbol)) |> 
+  mutate(y_offset = min_diff + (row_number() %% 3) * 0.03) 
 
 final_result_tbl |>
   mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |> 
@@ -107,18 +109,13 @@ final_result_tbl |>
   labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
        x = "SNP in Binding Region Status",
        y = "Minimum Difference") +
-    geom_text_repel(
-      data = label_data,
-      aes( label = symbol),  
-      direction = "x",
-      angle = 90,
-      segment.size = 0.2,
-      nudge_y = -0.05,
-      force = 0.3,        # Reduced force
-      max.overlaps = 20,  # Limit overlaps
-      size = 3,
-      show.legend = FALSE
-    )+
+  geom_text(
+    data = label_data,
+    aes(y = y_offset, label = symbol),  
+    angle = 90,
+    size = 3,
+    show.legend = FALSE
+  ) +
   theme_bw() +
   stat_compare_means() 
 
