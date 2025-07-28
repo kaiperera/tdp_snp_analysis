@@ -162,9 +162,3 @@ export(random_exons_end, "random_exon_250bp_end.bed")
 
 
 
-# checking bed files are ok -----------------------------------------------
-check <- read.table("C:/Users/Kai/Desktop/tdp_snp_analysis/skipped_exon_250bp_2.bed")
-
-check %>% 
-  mutate(width = V3 - V2) %>% 
-  dplyr::count(width)  # All widths should be 501 (for SNPs)
