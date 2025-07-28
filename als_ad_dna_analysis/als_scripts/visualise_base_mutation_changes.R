@@ -45,11 +45,10 @@ plot_data <- gene_overlaps |>
   dplyr::select(hm_rsid, snp_in_tdp, symbol) |> 
   left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many")
 
-base_change <- count_data |> 
-  left_join(plot_data, by = "hm_rsid") 
+ variant_data |> 
+  left_join(plot_data, by = "hm_rsid") |> view()
 
-count_data <- as.data.frame(table(variant_data$hm_rsid, variant_data$base_change))
-names(count_data) <- c("hm_rsid", "base_change", "count")
+
 
 base_change_counts <- count_data |> 
   group_by(base_change) |> 
