@@ -152,8 +152,9 @@ plot_data %>%
 
 
 plot_data %>%
-  filter(!is.na(symbol)) %>%   # Remove rows with missing symbols
+  unnest(symbol)  %>%
+  filter(!is.na(symbol)) %>%   
   count(symbol, sort = TRUE)
 
-
-
+count(plot_data, symbol)
+symbols()
