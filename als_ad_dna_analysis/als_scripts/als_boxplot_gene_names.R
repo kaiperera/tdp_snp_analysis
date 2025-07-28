@@ -91,10 +91,20 @@ plot_data <- gene_overlaps |>
   left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many")
 
 label_data <- plot_data %>% 
-  filter(min_diff < CE_vline_min) |> 
-  filter(!is.na(symbol)) |> 
-  mutate(y_offset = min_diff + (row_number() %% 3) * 0.03) 
+  filter(min_diff < CE_vline_min, !is.na(symbol)) 
 
+label_data_filtered <- label_data %>%
+  group_by(symbol) %>%
+  slice_sample(n = 5, replace = FALSE) %>%
+  ungroup()
+
+all_symbols <- unique(label_data_filtered$symbol)
+gene_colours <- setNames(
+  colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(length(all_symbols)),
+  all_symbols
+)
+                                                                               
+                                                                               
 final_result_tbl |>
   mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) |> 
   dplyr::select(hm_rsid,snp_in_tdp) |> 
@@ -103,19 +113,54 @@ final_result_tbl |>
              y = min_diff )) +
   geom_boxplot(fill = "cyan", 
                colour = "orchid4") +
-  geom_hline(yintercept = CE_vline_min,
-             size = 2,
-             linetype = 'dotted') +
-  labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
-       x = "SNP in Binding Region Status",
-       y = "Minimum Difference") +
-  geom_text(
-    data = label_data,
-    aes(y = y_offset, label = symbol),  
-    angle = 90,
-    size = 3,
-    show.legend = FALSE
+  geom_hline(yintercept = CE_vline_min, size = 2, linetype = 'dotted') +
+  geom_point(
+    data = label_data_filtered,
+    aes(x = as.factor(snp_in_tdp), y = min_diff, color = symbol),
+    size = 1.5,
+    alpha = 0.9
+  ) +
+  scale_color_manual(
+    values = gene_colours,
+    name = "Gene Symbols (≤5 points each)",
+    guide = guide_legend(override.aes = list(alpha = 1, size = 2), ncol = 1),
+    drop = FALSE
+  ) +
+  labs(
+    title = "Min_Diff Distribution of SNPs by Binding Region Presence (Filtered)",
+    x = "SNP in TDP-43 Binding Region",
+    y = "Minimum Difference"
   ) +
   theme_bw() +
-  stat_compare_means() 
+  theme(
+    legend.text = element_text(size = 6),
+    legend.key.size = unit(0.3, "cm"),
+    legend.title = element_text(size = 8),
+    legend.position = "right"
+  ) +
+  stat_compare_means()
+             
+
+  
+  
+  
+plot_data %>%
+  filter(!is.na(symbol)) %>%
+  group_by(symbol) %>%
+  summarise(min_min_diff = min(min_diff, na.rm = TRUE)) %>%
+  arrange(min_min_diff) %>% view()
+
+
+plot_data %>%
+  filter(!is.na(symbol)) %>%
+  count(symbol, sort = TRUE)
+  
+  
+  
+  
+  
+  
+  
+  
+ 
 
