@@ -270,7 +270,7 @@ writeXStringSet(ad_flank_risk_DSS, filepath = "ad_risk_test.fasta")
 
 # AD DeepClip Binding Profiles Code 
 ```{r READ IN DATA}
-ad_deepclip_data <- stream_in(file("C:/Users/Kai/Desktop/tdp_snp_analysis/data/ad_gwas1.json"))
+ad_deepclip_data <- stream_in(file("C:/Users/Kai/Desktop/tdp_snp_analysis/als_ad_dna_analysis/data/ad_gwas1.json"))
 ```
 
 ```{r CLEAN THEME FOR BINDING PROFILES}
@@ -285,7 +285,7 @@ clean_theme <- function() {
 ```
 
 ```{r BINDING PROFILES}
-ad_gwas1 <- jsonlite::fromJSON("C:/Users/Kai/Desktop/tdp_snp_analysis/data/ad_gwas1.json")$predictions
+ad_gwas1 <- jsonlite::fromJSON("C:/Users/Kai/Desktop/tdp_snp_analysis/als_ad_dna_analysis/data/ad_gwas1.json")$predictions
 
 ad_gwas1$variant_sequence = gsub("T", "U", ad_gwas1$variant_sequence)  #makes sure its RNA sequence
 ad_gwas1$variant_sequence = gsub("t", "u", ad_gwas1$variant_sequence)
@@ -354,7 +354,7 @@ for (i in 1:dim(ad_gwas1)[1]) {
 # Finding Overlaps between AD DeepClip output and TDP-43 Binding Regions
 ```{r READ IN BED}
 bed_data <- read.table(
-  unz(here::here("data/postar3_tardbp_reduced.bed.zip"),
+  unz(here::here("als_ad_dna_analysis/data/postar3_tardbp_reduced.bed.zip"),
   "postar3_tardbp_reduced.bed"),
   sep = "\t",
   header = FALSE,
@@ -587,24 +587,54 @@ min_max_scores <- ad_filtered_scores |>
 
 data_for_histogram <- left_join(ad_filtered_scores, min_max_scores, by = "score")
 
+
+
+CE_vline_min <- c(-0.1398594)
+intronic_vline_min <-c(-0.1044512)
+
+
+
+CE_vline_max <- c(0.01161578)
+intronic_vline_max <- c(0.07675736)
+
 ```
 
 
 ```{r HISTOGRAMS}
 p1 <- ggplot(data_for_histogram, aes(x = min_diff)) +
-  geom_histogram(bins = 100, fill = "peru", color = "black") +
+  geom_histogram(bins = 100, fill = "steelblue", color = "black") +
   labs(title = "Minimum Score Distribution",
        x = "DeepCLIP Minimum Score", 
        y = "Count") +
+  geom_vline(
+     xintercept = CE_vline_min,
+     colour = "red", 
+     linetype = "dashed", 
+     linewidth = 1) +
+   geom_vline(
+     xintercept = intronic_vline_min,
+     colour = "blue",
+     linetype = "dashed",
+     linewidth = 1)
   theme_bw()
 
 
 #Histogram for maximum score
 p2 <-ggplot(data_for_histogram, aes(x = max_diff)) +
-  geom_histogram(bins = 100, fill = "mediumaquamarine", color = "midnightblue") +
+  geom_histogram(bins = 100, fill = "steelblue", color = "black") +
   labs(title = "Maximum Score Distribution",
        x = "DeepCLIP Maximum Score", 
        y = "Count") +
+  geom_vline(
+     xintercept = CE_vline_min,
+     colour = "red", 
+     linetype = "dashed", 
+     linewidth = 1) +
+   geom_vline(
+     xintercept = intronic_vline_min,
+     colour = "blue",
+     linetype = "dashed",
+     linewidth = 1)
   theme_bw()
 
 p1/p2
@@ -633,12 +663,15 @@ snps_in_binding_regions <- ad_gwas_filtered_df |>
 ggplot(snps_in_binding_regions, aes(x = snp_in_tdp, y = min_diff)) +
   geom_boxplot(fill = "plum2",
                colour = "indianred2") +
-  labs(title = "Min_Diff Distribution of SNPs based on Binding Region Presence",
+  geom_hline(yintercept = CE_vline_min,
+             size = 2,
+             linetype = 'dotted')+
+  labs(title = "Minimum Difference Distribution of SNPs based on Binding Region Presence",
        x = "SNP in Binding Region Status",
        y = "Minimum Difference") +
   theme_bw() +
-  stat_compare_means(vjust = 10,
-                     hjust = -0.5) 
+  stat_compare_means(hjust = -0.8,
+                     vjust = 15) 
 
 ```
 Boxplot = similar overlap so similar distribution
@@ -649,7 +682,7 @@ MAY NOT HAVE NEEDED TO DO CHI2 AND FISHER YET
 
 ad_chi2 <- snps_in_binding_regions %>%
   dplyr::filter(complete.cases(.)) %>%
-  dplyr::mutate(min_diff_binned = ifelse(min_diff <= median(min_diff, na.rm = TRUE), "More Disruptive", "Less Disruptive"))
+  dplyr::mutate(min_diff_binned = if_else(min_diff <=  -0.1398594 , "More Disruptive (<=CE_SNP)", "Less Disruptive (> CE_SNP)"))
   
   contingency_table <- table(ad_chi2$snp_in_tdp, ad_chi2$min_diff_binned)
 
@@ -670,7 +703,7 @@ ad_chi2_counts <- ad_chi2 |>
 
 fisher_p <- round(fisher$p.value, 4)
 
-chi_p <- round(chi2$p.value, 4)
+
 
 ggplot(ad_chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
   geom_col(position = "dodge") +
@@ -684,16 +717,7 @@ ggplot(ad_chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
     hjust = 1.1,
     vjust = 1.1,
     size = 3,
-    colour = "royalblue3"
-  ) +
-  annotate(
-    "text",
-    x = Inf, y = Inf,
-    label = paste("Chi-Squared p-value =", chi_p),
-    hjust = 1.1,
-    vjust = 3.0,
-    size = 3,
-    color = "red"
+    colour = "blue"
   ) +
   theme_bw() 
 ```

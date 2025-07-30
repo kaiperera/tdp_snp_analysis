@@ -22,7 +22,7 @@ library(corrplot)
 
 #Generating ALS SNP sequences for DeepCLip analysis
 ```{r READ IN DATA}
-als_snps_to_start <- read.csv(here::here("data/als_snps_to_start.csv"))
+als_snps_to_start <- read.csv(here::here("als_ad_dna_analysis/data/als_snps_to_start.csv"))
 als_snps_to_start <-  als_snps_to_start |> filter(!is.na(hm_pos)) # filter data so that no missing values in hm_pos
 ```
 
@@ -126,7 +126,7 @@ writeXStringSet(risk_flank_DSS, filepath = "risk_flank_seq.fasta")
 # TDP-43 Binding Region Bed File Read In
 ```{r READ IN BED FILE DIRECTLY FROM ZIP}
 bed_data <- read.table(
-  unz(here::here("data/postar3_tardbp_reduced.bed.zip"),
+  unz(here::here("als_ad_dna_analysis/data/postar3_tardbp_reduced.bed.zip"),
   "postar3_tardbp_reduced.bed"),
   sep = "\t",
   header = FALSE,
@@ -137,7 +137,7 @@ bed_data <- read.table(
 
 # ALS GWAS DeepClip Output Read In and Generic Binding Profile Plotting
 ```{r READ IN DEEPCLIP}
-deepclip_data <- stream_in(file("C:/Users/Kai/Desktop/tdp_snp_analysis/data/als_gwas1.json"))
+deepclip_data <- stream_in(file("C:/Users/Kai/Desktop/tdp_snp_analysis/als_ad_dna_analysis/data/als_gwas1.json"))
 ```
 
 ```{r GGPLOT CLEAN THEME FOR PLOTTING BINDING PROFILES}
@@ -154,7 +154,7 @@ need to run this theme before plotting any binding profiles
 
 ```{r CODE FOR PLOTTING BINDING PROFILES}
 
-als_gwas1 <- jsonlite::fromJSON("C:/Users/Kai/Desktop/tdp_snp_analysis/data/als_gwas1.json")$predictions
+als_gwas1 <- jsonlite::fromJSON("C:/Users/Kai/Desktop/tdp_snp_analysis/als_ad_dna_analysis/data/als_gwas1.json")$predictions
 
 als_gwas1$variant_sequence = gsub("T", "U", als_gwas1$variant_sequence)  #makes sure its RNA sequence
 als_gwas1$variant_sequence = gsub("t", "u", als_gwas1$variant_sequence)
@@ -510,7 +510,7 @@ final_result_tbl |>
   geom_hline(yintercept = CE_vline_min,
              size = 2,
              linetype = 'dotted') +
-   labs(title = "Min_Diff distribution of SNPs based on Binding Region Presence",
+   labs(title = "Minimum Difference Distribution of SNPs based on Binding Region Presence",
        x = "SNP in Binding Region Status",
        y = "Minimum Difference") +
   theme_bw() +
@@ -964,7 +964,7 @@ chi2_counts <- chi2 |>
 
 p_value <- round(fisher_result$p.value, 4) # extracts p value and rounds to 4dp
 
-chi_p_value <- round(result$p.value, 4)
+
 
 ggplot(chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
   geom_col(position = "dodge") +
@@ -979,15 +979,6 @@ ggplot(chi2_counts, aes(x = snp_in_tdp, y = n, fill = min_diff_binned)) +
     vjust = 1.1,        # Vertical adjustment (pushes text down from Inf)
     size = 3,           
     color = "blue"      
-  ) +
-  annotate(
-    "text",
-    x = Inf, y = Inf,
-    label = paste("Chi-Squared p-value =", chi_p_value),
-    hjust = 1.1,
-    vjust = 3.0,
-    size = 3,
-    color = "violetred1"
   ) +
   theme_bw() 
 ```

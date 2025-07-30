@@ -60,7 +60,7 @@ fisher <- fisher.test(contingency_table)
 # visualisation -----------------------------------------------------------
 fisher_p <- round(fisher$p.value, 4)
 
-chi_p <- round(chi1_p$p.value, 4)
+
 
 
 combined_als_ad_counts <- combined_als_ad |> 
@@ -86,15 +86,6 @@ ggplot(combined_als_ad_counts, aes(x = disease, y = n, fill = in_binding)) +
     vjust = 1.1,
     size = 3,
     colour = "royalblue3"
-  ) +
-  annotate(
-    "text",
-    x = 0.95, y = 0.95,
-    label = paste("Chi-Squared p-value =", chi_p),
-    hjust = 0.5,
-    vjust = -32.5,
-    size = 3,
-    color = "red"
   ) +
   theme_bw() 
 
