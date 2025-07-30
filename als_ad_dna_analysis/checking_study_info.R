@@ -12,6 +12,11 @@ ad_snps_start |>
   view()
 
 
-GCST90027164 <- as.data.frame(GCST90027164) |> janitor::clean_names()
-GCST90027163 <- as.data.frame(GCST90027163) |> janitor::clean_names()
+GCST90027164 <- as.data.frame(GCST90027164) |> janitor::clean_names() #European ancestry
+GCST90027163 <- as.data.frame(GCST90027163) |> janitor::clean_names() #cross-ancestry
 pub_34873335 <- as.data.frame(pub_34873335) |> janitor::clean_names()
+
+
+pub_34873335 |> summarise(n_distinct_studies = n_distinct(initial_sample_size)) |> view()
+
+pub_34873335 |> distinct(initial_sample_size) |> print()
