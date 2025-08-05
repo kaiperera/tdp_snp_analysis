@@ -47,11 +47,11 @@ pub_34873335 |> distinct(initial_sample_size) |> print()
 
 #rs553196048 nout found in any of the gwas sets but found in als_snps_start
 
-stat_data <- read.table(
-  gzfile("C:/Users/Kai/Desktop/tdp_snp_analysis/GCST90027164_buildGRCh37.tsv.gz"),
+stat_data <- fread("C:/Users/Kai/Downloads/GCST90027164_buildGRCh37.tsv.gz",
   sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE
-)
+  header = TRUE
+) #data where als_snps_to_start came from 
 
+stat_data <- as.data.frame(stat_data) 
 
+als_snps_to_start$hm_rsid %in% stat_data$rsid
