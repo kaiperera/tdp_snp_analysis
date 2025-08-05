@@ -219,7 +219,7 @@ plot_data <- final_result_tbl %>%
   select(hm_rsid,snp_in_tdp) %>% 
   left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many") %>% 
   left_join(
-    als_snps_to_start %>% select(hm_rsid, beta),  # Only bring in the beta column
+    als_snps_to_start %>% select(hm_rsid, beta),  
     by = "hm_rsid"
   ) %>%
   filter(complete.cases(.)) 
@@ -231,7 +231,7 @@ plot_data |>
     median_beta = median(beta, na.rm = TRUE),
     sd_beta = sd(beta, na.rm = TRUE),
     n = n()
-  ) 
+  ) #-0.042 slightly more negative outside binding regions??
 
 
 #wilcoxon 2 sided - are distributions different in either direction?
@@ -355,7 +355,6 @@ ggplot(plot_data, aes(x = beta, fill = snp_in_tdp)) +
     color = "blue"
   ) +
   theme_bw()
-
 
 
 
