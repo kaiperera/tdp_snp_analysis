@@ -86,6 +86,12 @@ stat_check |>
 
 ggplot(stat_check, aes(x = beta, colour = min_diff_binned)) +
   stat_ecdf(geom = "step", linewidth = 1) +
+  scale_colour_manual(
+    name = "Disruption Level",
+    labels = c("More Disruptive (<=CE_SNP)" = "More Disruptive", 
+               "Less Disruptive (> CE_SNP)" = "Less Disruptive"),
+    values = c("midnightblue", "limegreen")  # Added color values
+  ) +
   labs(
     x = "Beta (Effect Size)", 
     y = "Cumulative Proportion",
@@ -110,6 +116,9 @@ ggplot(stat_check, aes(x = beta, colour = min_diff_binned)) +
 
 
 
+
+
+# boxplot within binding --------------------------------------------------
 
 
 ggplot(stat_check, aes(x = min_diff_binned, y = beta, fill = min_diff_binned)) +
@@ -146,6 +155,58 @@ ggplot(stat_check, aes(x = min_diff_binned, y = beta, fill = min_diff_binned)) +
   ) +
   theme_bw()
  
+
+
+# histogram within binding ------------------------------------------------
+
+ggplot(stat_check, aes(x = beta, fill = min_diff_binned)) +
+  geom_histogram(
+    bins = 30,               
+    color = "black",        
+    alpha = 0.7,            
+    position = "dodge"   
+  ) +
+  labs(
+    x = "Beta (Effect Size)", 
+    y = "Count",
+    fill = "Disruption Level",
+    title = "Distribution of Beta Values"
+  ) + 
+  scale_fill_manual(
+    values = c("More Disruptive (<=CE_SNP)" = "limegreen", 
+               "Less Disruptive (> CE_SNP)" = "midnightblue"),
+    labels = c("More Disruptive (<=CE_SNP)" = "More Disruptive", 
+               "Less Disruptive (> CE_SNP)" = "Less Disruptive")
+  ) +
+  geom_vline(               
+    xintercept = CE_beta,
+    color = "red", 
+    linetype = "dashed", 
+    linewidth = 0.5
+  ) + 
+  annotate(
+    "text",
+    x = Inf, y = Inf,
+    label = paste("Wilcox p-value =", wilcox_2_p),
+    hjust = 1.1,
+    vjust = 1.1,
+    size = 3,
+    color = "blue"
+  ) +
+  theme_bw()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -185,8 +246,17 @@ kruskal.test(beta ~ snp_in_tdp, data = plot_data) #0.8 ,  chi2 here = 0.02 means
 wilcox_p <- round(wilcox_all$p.value, digits = 4)
 
 
+# graph to compare in and out ---------------------------------------------
+
+
 ggplot(plot_data, aes(x = beta, colour = snp_in_tdp)) +
   stat_ecdf(geom = "step", linewidth = 1) +
+  scale_colour_manual(
+    name = "Binding Region Status",
+    values = c("TRUE" = "magenta", 
+               "FALSE" = "cyan3"),
+    labels = c("TRUE" = "In Binding",
+               "FALSE" = "Outside Binding")) +
   labs(
     x = "Beta (Effect Size)", 
     y = "Cumulative Proportion",
@@ -213,10 +283,13 @@ ggplot(plot_data, aes(x = beta, colour = snp_in_tdp)) +
 
 
 
+# box plot in and out -----------------------------------------------------
+
+
 ggplot(plot_data, aes(x = snp_in_tdp, y = beta, fill = snp_in_tdp)) +
   geom_boxplot() +
-  scale_fill_manual(values = c("TRUE" = "firebrick", 
-                               "FALSE" = "steelblue"),
+  scale_fill_manual(values = c("TRUE" = "magenta", 
+                               "FALSE" = "cyan3"),
                     labels = c("TRUE" = "In Binding",
                                "FALSE" = "Outside Binding")) +
   scale_x_discrete(
@@ -243,4 +316,69 @@ ggplot(plot_data, aes(x = snp_in_tdp, y = beta, fill = snp_in_tdp)) +
     color = "blue"
   ) +
   theme_bw() 
+
+
+
+# histogram in and out ----------------------------------------------------
+
+
+ggplot(plot_data, aes(x = beta, fill = snp_in_tdp)) +
+  geom_histogram(
+    bins = 30,               
+    color = "black",        
+    alpha = 0.7,            
+    position = "dodge"   
+  ) +
+  labs(
+    x = "Beta (Effect Size)", 
+    y = "Count",
+    fill = "Binding Region Status",
+    title = "Distribution of Beta Values"
+  ) + 
+  scale_fill_manual(values = c("TRUE" = "magenta", 
+                               "FALSE" = "cyan3"),
+                    labels = c("TRUE" = "In Binding",
+                               "FALSE" = "Outside Binding")) +
+  geom_vline(               
+    xintercept = CE_beta,
+    color = "red", 
+    linetype = "dashed", 
+    linewidth = 0.5
+  ) + 
+  annotate(
+    "text",
+    x = Inf, y = Inf,
+    label = paste("Wilcox p-value =", wilcox_2_p),
+    hjust = 1.1,
+    vjust = 1.1,
+    size = 3,
+    color = "blue"
+  ) +
+  theme_bw()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
  
