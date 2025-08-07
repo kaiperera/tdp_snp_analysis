@@ -20,8 +20,10 @@ sh_plot_data <- tdp_kd_genes |>
   
 #x = source, y = log2fold change - same for next plot 
 
-ggplot(sh_plot_data, aes(x = source, y = log2FoldChange)) +
+ggplot(sh_plot_data, aes(x = source, y = log2FoldChange, colour = symbol)) +
   geom_point() +
   labs(x = "source",
-       y = "log2FoldChange") +
+       y = "log2FoldChange")
   
+  
+#sort out colours = colour according to gene 
