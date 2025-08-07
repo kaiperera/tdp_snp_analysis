@@ -23,7 +23,7 @@ stat_check <- final_result_tbl %>%
     by = "hm_rsid"
   ) %>%
   filter(complete.cases(.)) %>% filter(snp_in_tdp == TRUE)%>% 
-  mutate(min_diff_binned = if_else(min_diff <=  -0.1398594 , "More Disruptive (<=CE_SNP)", "Less Disruptive (> CE_SNP)"))
+  mutate(min_diff_binned = if_else(min_diff <=  CE_snp_threshold, "More Disruptive (<=CE_SNP)", "Less Disruptive (> CE_SNP)"))
 
 
 
