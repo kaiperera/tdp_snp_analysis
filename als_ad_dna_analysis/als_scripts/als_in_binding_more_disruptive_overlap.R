@@ -1,9 +1,18 @@
 
 
-CE_snp_threshold <- stat_check |> 
-  filter(hm_rsid == "rs12973192") |> 
-  pull(min_diff)
 
+
+ CE_snp_threshold <- final_result_tbl %>% 
+  mutate(snp_in_tdp = hm_rsid %in% final_overlap_tbl$hm_rsid) %>% 
+  select(hm_rsid,snp_in_tdp) %>% 
+  left_join(unique_score_rsid, by = "hm_rsid", relationship = "many-to-many") %>% 
+  left_join(
+    als_snps_to_start %>% select(hm_rsid, beta),  
+    by = "hm_rsid"
+  ) %>%
+  filter(complete.cases(.)) |> 
+   filter(hm_rsid == "rs12973192") |> 
+   pull(min_diff)
 
 
 # venn diagram ----------------------
