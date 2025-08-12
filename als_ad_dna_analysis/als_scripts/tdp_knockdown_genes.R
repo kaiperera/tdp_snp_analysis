@@ -23,11 +23,12 @@ sh_plot_data <- tdp_kd_genes |>
 
 ggplot(sh_plot_data, aes(x = source, y = log2FoldChange, colour = sig)) +
   geom_point() +
-  labs(x = "source",
+  labs(title = "SH Differential Expression",
+       x = "source",
        y = "log2FoldChange",
-       colour = "Significance (P value)") +
+       colour = "Significance (P-adj value)") +
   scale_colour_manual(
-    name = "Significance (P value)",
+    name = "Significance (P-adj value)",
     labels = c("NS" = "Not Significant"),
     values = c("orange", "blue")
   ) +
@@ -37,21 +38,7 @@ ggplot(sh_plot_data, aes(x = source, y = log2FoldChange, colour = sig)) +
 
 
 
-ggplot(sh_plot_data, aes(x=source, y=log2FoldChange, fill = sig)) +
-  geom_bar(stat="identity") +
-  labs(x = "source",
-       y = "log2FoldChange",
-       colour = "Significance (P value)") +
-  scale_fill_manual(
-    name = "Significance (P value)",
-    labels = c("NS" = "Not Significant"),
-    values = c("orange", "blue")
-  ) +
-  theme_bw() 
-
-
-
-
+  
 # sk ----------------------------------------------------------------------
 
 sk_plot_data <- tdp_kd_genes |> 
@@ -59,13 +46,14 @@ sk_plot_data <- tdp_kd_genes |>
   mutate(sig = ifelse(padj < 0.05, "Significant", "NS"))
 
 
-ggplot(sh_plot_data, aes(x = source, y = log2FoldChange, colour = sig)) +
+ggplot(sk_plot_data, aes(x = source, y = log2FoldChange, colour = sig)) +
   geom_point() +
-  labs(x = "source",
+  labs( title = " SK Differential Expression",
+        x = "source",
        y = "log2FoldChange",
-       colour = "Significance (P value)") +
+       colour = "Significance (P-adj value)") +
   scale_colour_manual(
-    name = "Significance (P value)",
+    name = "Significance (P-adj value)",
     labels = c("NS" = "Not Significant"),
     values = c("orange", "blue")
   ) +
