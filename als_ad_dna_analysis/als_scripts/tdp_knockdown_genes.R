@@ -242,8 +242,14 @@ sk_sig <- tdp_kd_genes |>
 view(final_result_tbl)
 tdp_kd_genes$rsid %in% final_overlap_tbl$hm_rsid 
 
+bp <- tdp_kd_genes |> 
+  filter( symbol == c("ROBO2", "UNC13A", "FANCD2", "USP37"))
+  
+
+#finish workung on this - figure out why only 1 snp is being returned 
+
 four_genes_bp <- final_overlap_tbl |> 
-  filter(hm_rsid %in% tdp_kd_genes$rsid)
+  filter(hm_rsid %in% bp$rsid) 
 
 
 
