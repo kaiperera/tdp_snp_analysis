@@ -166,18 +166,18 @@ sk_sig <- tdp_kd_genes |>
  }
 
  
- final_overlap$variant_sequence = gsub("T", "U", final_overlap$variant_sequence)  #makes sure its RNA sequence
- final_overlap$variant_sequence = gsub("t", "u", final_overlap$variant_sequence)
- final_overlap$sequence = gsub("T", "U", final_overlap$sequence)
- final_overlap$sequence = gsub("t", "u", final_overlap$sequence)
+ four_genes_bp$variant_sequence = gsub("T", "U", four_genes_bp$variant_sequence)  #makes sure its RNA sequence
+ four_genes_bp$variant_sequence = gsub("t", "u", four_genes_bp$variant_sequence)
+ four_genes_bp$sequence = gsub("T", "U", four_genes_bp$sequence)
+ four_genes_bp$sequence = gsub("t", "u", four_genes_bp$sequence)
  
  # FUNCTION CREATION
- paired_plot <- function(final_overlap, plot_difference) {      #    plot_difference =  function parameter (like a switch) that determines whether the plot shows: FALSE = raw weights for both sequences, TRUE = difference between weights
+ paired_plot <- function(four_genes_bp, plot_difference) {      #    plot_difference =  function parameter (like a switch) that determines whether the plot shows: FALSE = raw weights for both sequences, TRUE = difference between weights
    weights1 <- unlist(x$weights)
    weights2 <- unlist(x$variant_weights)
    
-   seq1 <- strsplit(toupper(final_overlap$sequence), "")[[1]]      # prepares code for comparison - toupper = all upper case, strsplit = splits character string into individual characters, [1] = select first element from each list returned by strsplit 
-   seq2 <- strsplit(toupper(final_overlap$variant_sequence), "")[[1]]  # output = character vectors 
+   seq1 <- strsplit(toupper(four_genes_bp$sequence), "")[[1]]      # prepares code for comparison - toupper = all upper case, strsplit = splits character string into individual characters, [1] = select first element from each list returned by strsplit 
+   seq2 <- strsplit(toupper(four_genes_bp$variant_sequence), "")[[1]]  # output = character vectors 
    
    if(plot_difference) {    #for plot_difference = TRUE
      weights2 <- weights2 - weights1  #calculates difference (variant - reference)
@@ -212,27 +212,24 @@ sk_sig <- tdp_kd_genes |>
    return(p)
  }
  
- target_rows <- c(4,5)
  
  
- for (i in target_rows) {  
-   x = final_overlap[i,]   #extracts i-th row - assumes data in df where each row contains sequence data 
+ 
+ for (i in 1:dim(four_genes_bp)) {  
+   x = four_genes_bp[i,]   #extracts i-th row - assumes data in df where each row contains sequence data 
    width = 10.5   #sets pdf dimensions
    height = 3.65
-   if (length(final_overlap$weights[[1]]) <= 30) {width = 7.75}
+   if (length(four_genes_bp$weights[[1]]) <= 30) {width = 7.75}
    
-   base_name <- switch(as.character(i),
-                       "4" = "intronic_SNP",
-                       "5" = "CE_SNP",
-                       paste0("row_", i))
+   rsID <- x$hm_rsid
    
-   p = paired_plot(final_overlap, plot_difference = FALSE)  #plot generation
-   pdf(paste0(base_name,".pdf"), width = width, height = height)  #saves plot as pdf
+   p = paired_plot(four_genes_bp, plot_difference = FALSE)  #plot generation
+   pdf(paste0(rsID,".pdf"), width = width, height = height)  #saves plot as pdf
    print(p)
    dev.off()
    
-   p_diff = paired_plot(final_overlap, plot_difference = TRUE)
-   pdf(paste0(base_name,".difference.pdf"), width = width, height = height)
+   p_diff = paired_plot(four_genes_bp, plot_difference = TRUE)
+   pdf(paste0(rsID,".difference.pdf"), width = width, height = height)
    print(p_diff)
    dev.off()
  }
@@ -242,6 +239,11 @@ sk_sig <- tdp_kd_genes |>
 #modify this code for snps in FANCD2, ROBO2, UNC13A, USP37 - only need to modify from target rows down
 
  
- tdp_kd_genes$rsid %in% final_overlap_tbl
- 
+view(final_result_tbl)
+tdp_kd_genes$rsid %in% final_overlap_tbl$hm_rsid 
+
+four_genes_bp <- final_overlap_tbl |> 
+  filter(hm_rsid %in% tdp_kd_genes$rsid)
+
+
 
