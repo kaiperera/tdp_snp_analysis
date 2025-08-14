@@ -256,7 +256,7 @@ sk_sig <- tdp_kd_genes |>
 
 
 
-# ROBO2 -------------------------------------------------------------------
+# export for analysis  -------------------------------------------------------------------
 
 tdp_kd_genes |> filter(symbol == c("ROBO2"))
  tdp_kd_genes |> filter(symbol == c("USP37"))
