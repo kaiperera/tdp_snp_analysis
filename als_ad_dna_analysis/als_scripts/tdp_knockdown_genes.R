@@ -259,8 +259,28 @@ sk_sig <- tdp_kd_genes |>
 # ROBO2 -------------------------------------------------------------------
 
 tdp_kd_genes |> filter(symbol == c("ROBO2"))
+ tdp_kd_genes |> filter(symbol == c("USP37"))
+ tdp_kd_genes |> filter(symbol == c("FANCD2"))
+ tdp_kd_genes |> filter(symbol == c("UNC13A"))
  
 ROBO2 <- four_genes_bp |> filter(hm_rsid == "rs17013690" | hm_rsid == "rs73841097" | hm_rsid == "rs77967051") 
 
-export(ROBO2, "ROBO2.bed")
+export(ROBO2, "ROBO2.bed") #chr3:76039176-76039176 rs17013690, chr3:76050016-76050016 rs73841097, chr3:76055414-76055414 rs77967051
 
+USP37 <- four_genes_bp |> filter(hm_rsid == "rs1516086" | hm_rsid == "rs678218") 
+
+export(USP37, "USP37.bed") #chr2:218566812-218566812 rs1516086 , chr2:218514986-218514986 rs678218
+
+#need to add row 997 from final rsult tbl for rs680
+FANCD2 <- four_genes_bp |> filter(hm_rsid == "rs7625685" | hm_rsid == "rs6808853") 
+
+add <- final_result_tbl[997,]
+
+FANCD2 <- rbind(FANCD2, add)
+FANCD2 <- FANCD2[-2,]
+
+export(FANCD2, "FANCD2.bed") # chr3:10074462-10074462 rs7625685 , chr3:10087869-10087869 rs6808853
+
+UNC13A <- four_genes_bp |> filter(hm_rsid == "rs12973192") 
+
+export(UNC13A, "UNC13A.bed")
