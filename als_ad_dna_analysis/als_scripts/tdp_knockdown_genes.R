@@ -155,7 +155,26 @@ sk_sig <- tdp_kd_genes |>
 
 
 # binding plots for these snps --------------------------------------------
-
+ view(final_result_tbl)
+ tdp_kd_genes$rsid %in% final_overlap_tbl$hm_rsid 
+ 
+ bp <- tdp_kd_genes |> 
+   filter(symbol == "ROBO2" | symbol == "UNC13A" | symbol == "FANCD2" | symbol == "USP37")
+ 
+ 
+ 
+ 
+ four_genes_bp <- final_overlap_tbl |> 
+   filter(hm_rsid %in% bp$rsid) 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  clean_theme <- function() {
    ggpubr::theme_pubclean() +     #creates clean theme to reuse in all plots
      theme(
@@ -236,20 +255,8 @@ sk_sig <- tdp_kd_genes |>
 
 
 
-#modify this code for snps in FANCD2, ROBO2, UNC13A, USP37 - only need to modify from target rows down
 
  
-view(final_result_tbl)
-tdp_kd_genes$rsid %in% final_overlap_tbl$hm_rsid 
-
-bp <- tdp_kd_genes |> 
-  filter( symbol == c("ROBO2", "UNC13A", "FANCD2", "USP37"))
-  
-
-#finish workung on this - figure out why only 1 snp is being returned 
-
-four_genes_bp <- final_overlap_tbl |> 
-  filter(hm_rsid %in% bp$rsid) 
 
 
 
