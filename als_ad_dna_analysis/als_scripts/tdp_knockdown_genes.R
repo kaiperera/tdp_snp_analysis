@@ -256,7 +256,11 @@ sk_sig <- tdp_kd_genes |>
 
 
 
+# ROBO2 -------------------------------------------------------------------
+
+tdp_kd_genes |> filter(symbol == c("ROBO2"))
  
+ROBO2 <- four_genes_bp |> filter(hm_rsid == "rs17013690" | hm_rsid == "rs73841097" | hm_rsid == "rs77967051") 
 
-
+export(ROBO2, "ROBO2.bed")
 
